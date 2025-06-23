@@ -225,53 +225,53 @@ class ResponseProcessor:
                 # Process content chunk
                 if delta and hasattr(delta, 'content') and delta.content:
                     chunk_content = delta.content
-                        # print(chunk_content, end='', flush=True)
+                    # print(chunk_content, end='', flush=True)
                     accumulated_content += chunk_content
                     current_xml_content += chunk_content
 
-                            if not (config.max_xml_tool_calls > 0 and xml_tool_call_count >= config.max_xml_tool_calls):
-                            # Yield ONLY content chunk (don't save)
-                            now_chunk = datetime.now(timezone.utc).isoformat()
-                            yield {
-                                "sequence": __sequence,
-                                "message_id": None, "thread_id": thread_id, "type": "assistant",
-                                "is_llm_message": True,
-                                "content": to_json_string({"role": "assistant", "content": chunk_content}),
-                                "metadata": to_json_string({"stream_status": "chunk", "thread_run_id": thread_run_id}),
-                                "created_at": now_chunk, "updated_at": now_chunk
-                            }
-                            __sequence += 1
-                        else:
-                            logger.info("XML tool call limit reached - not yielding more content chunks")
-                            self.trace.event(name="xml_tool_call_limit_reached", level="DEFAULT", status_message=(f"XML tool call limit reached - not yielding more content chunks"))
+                    if not (config.max_xml_tool_calls > 0 and xml_tool_call_count >= config.max_xml_tool_calls):
+                        # Yield ONLY content chunk (don't save)
+                        now_chunk = datetime.now(timezone.utc).isoformat()
+                        yield {
+                            "sequence": __sequence,
+                            "message_id": None, "thread_id": thread_id, "type": "assistant",
+                            "is_llm_message": True,
+                            "content": to_json_string({"role": "assistant", "content": chunk_content}),
+                            "metadata": to_json_string({"stream_status": "chunk", "thread_run_id": thread_run_id}),
+                            "created_at": now_chunk, "updated_at": now_chunk
+                        }
+                        __sequence += 1
+                    else:
+                        logger.info("XML tool call limit reached - not yielding more content chunks")
+                        self.trace.event(name="xml_tool_call_limit_reached", level="DEFAULT", status_message=(f"XML tool call limit reached - not yielding more content chunks"))
 
-                        # --- Process XML Tool Calls (if enabled and limit not reached) ---
-                        if config.xml_tool_calling and not (config.max_xml_tool_calls > 0 and xml_tool_call_count >= config.max_xml_tool_calls):
-                            xml_chunks = self._extract_xml_chunks(current_xml_content)
-                            for xml_chunk in xml_chunks:
-                                current_xml_content = current_xml_content.replace(xml_chunk, "", 1)
-                                xml_chunks_buffer.append(xml_chunk)
-                                result = self._parse_xml_tool_call(xml_chunk)
-                                if result:
-                                    tool_call, parsing_details = result
-                                    xml_tool_call_count += 1
-                                    current_assistant_id = last_assistant_message_object['message_id'] if last_assistant_message_object else None
-                                    context = self._create_tool_context(
-                                        tool_call, tool_index, current_assistant_id, parsing_details
-                                    )
+                    # --- Process XML Tool Calls (if enabled and limit not reached) ---
+                    if config.xml_tool_calling and not (config.max_xml_tool_calls > 0 and xml_tool_call_count >= config.max_xml_tool_calls):
+                        xml_chunks = self._extract_xml_chunks(current_xml_content)
+                        for xml_chunk in xml_chunks:
+                            current_xml_content = current_xml_content.replace(xml_chunk, "", 1)
+                            xml_chunks_buffer.append(xml_chunk)
+                            result = self._parse_xml_tool_call(xml_chunk)
+                            if result:
+                                tool_call, parsing_details = result
+                                xml_tool_call_count += 1
+                                current_assistant_id = last_assistant_message_object['message_id'] if last_assistant_message_object else None
+                                context = self._create_tool_context(
+                                    tool_call, tool_index, current_assistant_id, parsing_details
+                                )
 
-                                    if config.execute_tools and config.execute_on_stream:
-                                        # Save and Yield tool_started status
-                                        started_msg_obj = await self._yield_and_save_tool_started(context, thread_id, thread_run_id)
-                                        if started_msg_obj: yield format_for_yield(started_msg_obj)
-                                        yielded_tool_indices.add(tool_index) # Mark status as yielded
+                                if config.execute_tools and config.execute_on_stream:
+                                    # Save and Yield tool_started status
+                                    started_msg_obj = await self._yield_and_save_tool_started(context, thread_id, thread_run_id)
+                                    if started_msg_obj: yield format_for_yield(started_msg_obj)
+                                    yielded_tool_indices.add(tool_index) # Mark status as yielded
 
-                                        execution_task = asyncio.create_task(self._execute_tool(tool_call))
-                                        pending_tool_executions.append({
-                                            "task": execution_task, "tool_call": tool_call,
-                                            "tool_index": tool_index, "context": context
+                                    execution_task = asyncio.create_task(self._execute_tool(tool_call))
+                                    pending_tool_executions.append({
+                                        "task": execution_task, "tool_call": tool_call,
+                                        "tool_index": tool_index, "context": context
                                         })
-                                        tool_index += 1
+                                    tool_index += 1
 
                                     if config.max_xml_tool_calls > 0 and xml_tool_call_count >= config.max_xml_tool_calls:
                                         logger.debug(f"Reached XML tool call limit ({config.max_xml_tool_calls})")
