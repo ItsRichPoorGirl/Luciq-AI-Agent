@@ -270,7 +270,7 @@ class ResponseProcessor:
                                     pending_tool_executions.append({
                                         "task": execution_task, "tool_call": tool_call,
                                         "tool_index": tool_index, "context": context
-                                        })
+                                    })
                                     tool_index += 1
 
                                     if config.max_xml_tool_calls > 0 and xml_tool_call_count >= config.max_xml_tool_calls:
