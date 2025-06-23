@@ -103,7 +103,7 @@ class ResponseProcessor:
         self.xml_parser = XMLToolParser(strict_mode=False)
         self.is_agent_builder = is_agent_builder
         self.target_agent_id = target_agent_id
-
+        
     async def _yield_message(self, message_obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """Helper to yield a message with proper formatting.
         
@@ -222,14 +222,14 @@ class ResponseProcessor:
                         # Append reasoning to main content to be saved in the final message
                         accumulated_content += delta.reasoning_content
 
-                    # Process content chunk
-                    if delta and hasattr(delta, 'content') and delta.content:
-                        chunk_content = delta.content
+                # Process content chunk
+                if delta and hasattr(delta, 'content') and delta.content:
+                    chunk_content = delta.content
                         # print(chunk_content, end='', flush=True)
-                        accumulated_content += chunk_content
-                        current_xml_content += chunk_content
+                    accumulated_content += chunk_content
+                    current_xml_content += chunk_content
 
-                        if not (config.max_xml_tool_calls > 0 and xml_tool_call_count >= config.max_xml_tool_calls):
+                            if not (config.max_xml_tool_calls > 0 and xml_tool_call_count >= config.max_xml_tool_calls):
                             # Yield ONLY content chunk (don't save)
                             now_chunk = datetime.now(timezone.utc).isoformat()
                             yield {
@@ -895,7 +895,7 @@ class ResponseProcessor:
                  )
                  if err_msg_obj: yield format_for_yield(err_msg_obj)
 
-       # --- Execute Tools and Yield Results ---
+            # --- Execute Tools and Yield Results ---
             tool_calls_to_execute = [item['tool_call'] for item in all_tool_data]
             if config.execute_tools and tool_calls_to_execute:
                 logger.info(f"Executing {len(tool_calls_to_execute)} tools with strategy: {config.tool_execution_strategy}")
@@ -1098,58 +1098,58 @@ class ResponseProcessor:
             # If no new format found, fall back to old format for backwards compatibility
             if not chunks:
                 pos = 0
-                while pos < len(content):
-                    # Find the next tool tag
-                    next_tag_start = -1
-                    current_tag = None
+            while pos < len(content):
+                # Find the next tool tag
+                next_tag_start = -1
+                current_tag = None
+                
+                # Find the earliest occurrence of any registered tag
+                for tag_name in self.tool_registry.xml_tools.keys():
+                    start_pattern = f'<{tag_name}'
+                    tag_pos = content.find(start_pattern, pos)
                     
-                    # Find the earliest occurrence of any registered tag
-                    for tag_name in self.tool_registry.xml_tools.keys():
-                        start_pattern = f'<{tag_name}'
-                        tag_pos = content.find(start_pattern, pos)
-                        
-                        if tag_pos != -1 and (next_tag_start == -1 or tag_pos < next_tag_start):
-                            next_tag_start = tag_pos
-                            current_tag = tag_name
+                    if tag_pos != -1 and (next_tag_start == -1 or tag_pos < next_tag_start):
+                        next_tag_start = tag_pos
+                        current_tag = tag_name
+                
+                if next_tag_start == -1 or not current_tag:
+                    break
+                
+                # Find the matching end tag
+                end_pattern = f'</{current_tag}>'
+                tag_stack = []
+                chunk_start = next_tag_start
+                current_pos = next_tag_start
+                
+                while current_pos < len(content):
+                    # Look for next start or end tag of the same type
+                    next_start = content.find(f'<{current_tag}', current_pos + 1)
+                    next_end = content.find(end_pattern, current_pos)
                     
-                    if next_tag_start == -1 or not current_tag:
+                    if next_end == -1:  # No closing tag found
                         break
                     
-                    # Find the matching end tag
-                    end_pattern = f'</{current_tag}>'
-                    tag_stack = []
-                    chunk_start = next_tag_start
-                    current_pos = next_tag_start
-                    
-                    while current_pos < len(content):
-                        # Look for next start or end tag of the same type
-                        next_start = content.find(f'<{current_tag}', current_pos + 1)
-                        next_end = content.find(end_pattern, current_pos)
-                        
-                        if next_end == -1:  # No closing tag found
+                    if next_start != -1 and next_start < next_end:
+                        # Found nested start tag
+                        tag_stack.append(next_start)
+                        current_pos = next_start + 1
+                    else:
+                        # Found end tag
+                        if not tag_stack:  # This is our matching end tag
+                            chunk_end = next_end + len(end_pattern)
+                            chunk = content[chunk_start:chunk_end]
+                            chunks.append(chunk)
+                            pos = chunk_end
                             break
-                        
-                        if next_start != -1 and next_start < next_end:
-                            # Found nested start tag
-                            tag_stack.append(next_start)
-                            current_pos = next_start + 1
                         else:
-                            # Found end tag
-                            if not tag_stack:  # This is our matching end tag
-                                chunk_end = next_end + len(end_pattern)
-                                chunk = content[chunk_start:chunk_end]
-                                chunks.append(chunk)
-                                pos = chunk_end
-                                break
-                            else:
-                                # Pop nested tag
-                                tag_stack.pop()
-                                current_pos = next_end + 1
-                    
-                    if current_pos >= len(content):  # Reached end without finding closing tag
-                        break
-                    
-                    pos = max(pos + 1, current_pos)
+                            # Pop nested tag
+                            tag_stack.pop()
+                            current_pos = next_end + 1
+                
+                if current_pos >= len(content):  # Reached end without finding closing tag
+                    break
+                
+                pos = max(pos + 1, current_pos)
         
         except Exception as e:
             logger.error(f"Error extracting XML chunks: {e}")
@@ -1593,8 +1593,8 @@ class ResponseProcessor:
             
             if is_mcp_tool:
                 # Special handling for MCP tools - make content prominent and LLM-friendly
-                result_role = "user" if strategy == "user_message" else "assistant"
-                
+            result_role = "user" if strategy == "user_message" else "assistant"
+            
                 # Extract the actual content from the ToolResult
                 if hasattr(result, 'output'):
                     mcp_content = str(result.output)
@@ -1751,7 +1751,7 @@ class ResponseProcessor:
         #     logger.info(f"Returning sumnary for data provider call: {summary}")
         #     return summary
             
-        return structured_result_v1
+            return structured_result_v1
 
     def _format_xml_tool_result(self, tool_call: Dict[str, Any], result: ToolResult) -> str:
         """Format a tool result wrapped in a <tool_result> tag.

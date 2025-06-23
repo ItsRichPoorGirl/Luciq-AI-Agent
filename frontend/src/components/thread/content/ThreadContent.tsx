@@ -134,34 +134,34 @@ export function renderMarkdownContent(
                         </div>
                     );
                 } else {
-                    const IconComponent = getToolIcon(toolName);
-                    
-                    // Extract primary parameter for display
-                    let paramDisplay = '';
-                    if (toolCall.parameters.file_path) {
-                        paramDisplay = toolCall.parameters.file_path;
-                    } else if (toolCall.parameters.command) {
-                        paramDisplay = toolCall.parameters.command;
-                    } else if (toolCall.parameters.query) {
-                        paramDisplay = toolCall.parameters.query;
-                    } else if (toolCall.parameters.url) {
-                        paramDisplay = toolCall.parameters.url;
-                    }
-                    
-                    contentParts.push(
-                        <div key={`tool-${match.index}-${index}`} className="my-1">
-                            <button
-                                onClick={() => handleToolClick(messageId, toolName)}
-                                className="inline-flex items-center gap-1.5 py-1 px-1 text-xs text-muted-foreground bg-muted hover:bg-muted/80 rounded-md transition-colors cursor-pointer border border-neutral-200 dark:border-neutral-700/50"
-                            >
-                                <div className='border-2 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center p-0.5 rounded-sm border-neutral-400/20 dark:border-neutral-600'>
-                                    <IconComponent className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                </div>
-                                <span className="font-mono text-xs text-foreground">{getUserFriendlyToolName(toolName)}</span>
-                                {paramDisplay && <span className="ml-1 text-muted-foreground truncate max-w-[200px]" title={paramDisplay}>{paramDisplay}</span>}
-                            </button>
-                        </div>
-                    );
+                const IconComponent = getToolIcon(toolName);
+                
+                // Extract primary parameter for display
+                let paramDisplay = '';
+                if (toolCall.parameters.file_path) {
+                    paramDisplay = toolCall.parameters.file_path;
+                } else if (toolCall.parameters.command) {
+                    paramDisplay = toolCall.parameters.command;
+                } else if (toolCall.parameters.query) {
+                    paramDisplay = toolCall.parameters.query;
+                } else if (toolCall.parameters.url) {
+                    paramDisplay = toolCall.parameters.url;
+                }
+                
+                contentParts.push(
+                    <div key={`tool-${match.index}-${index}`} className="my-1">
+                        <button
+                            onClick={() => handleToolClick(messageId, toolName)}
+                            className="inline-flex items-center gap-1.5 py-1 px-1 text-xs text-muted-foreground bg-muted hover:bg-muted/80 rounded-md transition-colors cursor-pointer border border-neutral-200 dark:border-neutral-700/50"
+                        >
+                            <div className='border-2 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center p-0.5 rounded-sm border-neutral-400/20 dark:border-neutral-600'>
+                                <IconComponent className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            </div>
+                            <span className="font-mono text-xs text-foreground">{getUserFriendlyToolName(toolName)}</span>
+                            {paramDisplay && <span className="ml-1 text-muted-foreground truncate max-w-[200px]" title={paramDisplay}>{paramDisplay}</span>}
+                        </button>
+                    </div>
+                );
                 }
             });
             
@@ -232,18 +232,18 @@ export function renderMarkdownContent(
             // Render tool button as a clickable element
             contentParts.push(
                 <div key={toolCallKey} className="my-1">
-                    <button
-                        onClick={() => handleToolClick(messageId, toolName)}
+                <button
+                    onClick={() => handleToolClick(messageId, toolName)}
                         className="inline-flex items-center gap-1.5 py-1 px-1 text-xs text-muted-foreground bg-muted hover:bg-muted/80 rounded-md transition-colors cursor-pointer border border-neutral-200 dark:border-neutral-700/50"
-                    >
-                        <div className='border-2 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center p-0.5 rounded-sm border-neutral-400/20 dark:border-neutral-600'>
-                            <IconComponent className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                        </div>
-                        <span className="font-mono text-xs text-foreground">{getUserFriendlyToolName(toolName)}</span>
-                        {paramDisplay && <span className="ml-1 text-muted-foreground truncate max-w-[200px]" title={paramDisplay}>{paramDisplay}</span>}
-                    </button>
+                >
+                    <div className='border-2 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center p-0.5 rounded-sm border-neutral-400/20 dark:border-neutral-600'>
+                        <IconComponent className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                    </div>
+                    <span className="font-mono text-xs text-foreground">{getUserFriendlyToolName(toolName)}</span>
+                    {paramDisplay && <span className="ml-1 text-muted-foreground truncate max-w-[200px]" title={paramDisplay}>{paramDisplay}</span>}
+                </button>
                 </div>
-            ); 
+            );
         }
         lastIndex = xmlRegex.lastIndex;
     }
@@ -367,17 +367,17 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
 
     return (
         <>
-            {displayMessages.length === 0 && !streamingTextContent && !streamingToolCall &&
-                !streamingText && !currentToolCall && agentStatus === 'idle' ? (
+                    {displayMessages.length === 0 && !streamingTextContent && !streamingToolCall &&
+                        !streamingText && !currentToolCall && agentStatus === 'idle' ? (
                 // Render empty state outside scrollable container
                 <div className="flex-1 min-h-[60vh] flex items-center justify-center">
                     {emptyStateComponent || (
-                        <div className="text-center text-muted-foreground">
-                            {readOnly ? "No messages to display." : "Send a message to start."}
-                        </div>
+                            <div className="text-center text-muted-foreground">
+                                {readOnly ? "No messages to display." : "Send a message to start."}
+                            </div>
                     )}
-                </div>
-            ) : (
+                        </div>
+                    ) : (
                 // Render scrollable content container
                 <div
                     ref={messagesContainerRef}
@@ -501,17 +501,17 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                         // Only add streaming content if it's not already represented in the last message
                                         const lastMessage = lastGroup.messages[lastGroup.messages.length - 1];
                                         if (lastMessage.message_id !== 'streamingTextContent') {
-                                            lastGroup.messages.push({
-                                                content: streamingTextContent,
-                                                type: 'assistant',
-                                                message_id: 'streamingTextContent',
-                                                metadata: 'streamingTextContent',
-                                                created_at: new Date().toISOString(),
-                                                updated_at: new Date().toISOString(),
-                                                is_llm_message: true,
-                                                thread_id: 'streamingTextContent',
-                                                sequence: Infinity,
-                                            });
+                                        lastGroup.messages.push({
+                                            content: streamingTextContent,
+                                            type: 'assistant',
+                                            message_id: 'streamingTextContent',
+                                            metadata: 'streamingTextContent',
+                                            created_at: new Date().toISOString(),
+                                            updated_at: new Date().toISOString(),
+                                            is_llm_message: true,
+                                            thread_id: 'streamingTextContent',
+                                            sequence: Infinity,
+                                        });
                                         }
                                     }
                                 }
@@ -652,27 +652,27 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                                                         );
                                                                         
                                                                         assistantMessageCount++; // Increment after adding the element
-                                                                    }
-                                                                });
+                                                                        }
+                                                                    });
 
-                                                                return elements;
-                                                            })()}
+                                                                    return elements;
+                                                                })()}
 
                                                             {groupIndex === finalGroupedMessages.length - 1 && !readOnly && (streamHookStatus === 'streaming' || streamHookStatus === 'connecting') && (
-                                                                <div className="mt-2">
-                                                                    {(() => {
-                                                                        // In debug mode, show raw streaming content
-                                                                        if (debugMode && streamingTextContent) {
-                                                                            return (
-                                                                                <pre className="text-xs font-mono whitespace-pre-wrap overflow-x-auto p-2 border border-border rounded-md bg-muted/30">
-                                                                                    {streamingTextContent}
-                                                                                </pre>
-                                                                            );
-                                                                        }
+                                                                    <div className="mt-2">
+                                                                        {(() => {
+                                                                            // In debug mode, show raw streaming content
+                                                                            if (debugMode && streamingTextContent) {
+                                                                                return (
+                                                                                    <pre className="text-xs font-mono whitespace-pre-wrap overflow-x-auto p-2 border border-border rounded-md bg-muted/30">
+                                                                                        {streamingTextContent}
+                                                                                    </pre>
+                                                                                );
+                                                                            }
 
-                                                                        let detectedTag: string | null = null;
-                                                                        let tagStartIndex = -1;
-                                                                        if (streamingTextContent) {
+                                                                            let detectedTag: string | null = null;
+                                                                            let tagStartIndex = -1;
+                                                                            if (streamingTextContent) {
                                                                             // First check for new format
                                                                             const functionCallsIndex = streamingTextContent.indexOf('<function_calls>');
                                                                             if (functionCallsIndex !== -1) {
@@ -689,36 +689,36 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                                                                         break;
                                                                                     }
                                                                                 }
+                                                                                }
                                                                             }
-                                                                        }
 
 
-                                                                        const textToRender = streamingTextContent || '';
-                                                                        const textBeforeTag = detectedTag ? textToRender.substring(0, tagStartIndex) : textToRender;
-                                                                        const showCursor = (streamHookStatus === 'streaming' || streamHookStatus === 'connecting') && !detectedTag;
+                                                                            const textToRender = streamingTextContent || '';
+                                                                            const textBeforeTag = detectedTag ? textToRender.substring(0, tagStartIndex) : textToRender;
+                                                                            const showCursor = (streamHookStatus === 'streaming' || streamHookStatus === 'connecting') && !detectedTag;
                                                                         const IconComponent = detectedTag && detectedTag !== 'function_calls' ? getToolIcon(detectedTag) : null;
 
-                                                                        return (
-                                                                            <>
-                                                                                {textBeforeTag && (
+                                                                            return (
+                                                                                <>
+                                                                                    {textBeforeTag && (
                                                                                     <Markdown className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none [&>:first-child]:mt-0 prose-headings:mt-3 break-words overflow-wrap-anywhere">{textBeforeTag}</Markdown>
-                                                                                )}
-                                                                                {showCursor && (
-                                                                                    <span className="inline-block h-4 w-0.5 bg-primary ml-0.5 -mb-1 animate-pulse" />
-                                                                                )}
+                                                                                    )}
+                                                                                    {showCursor && (
+                                                                                        <span className="inline-block h-4 w-0.5 bg-primary ml-0.5 -mb-1 animate-pulse" />
+                                                                                    )}
 
                                                                                 {detectedTag && detectedTag !== 'function_calls' && (
-                                                                                    <div className="mt-2 mb-1">
-                                                                                        <button
-                                                                                            className="animate-shimmer inline-flex items-center gap-1.5 py-1 px-1 text-xs font-medium text-primary bg-muted hover:bg-muted/80 rounded-md transition-colors cursor-pointer border border-primary/20"
-                                                                                        >
-                                                                                            <div className='border-2 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center p-0.5 rounded-sm border-neutral-400/20 dark:border-neutral-600'>
-                                                                                                <CircleDashed className="h-3.5 w-3.5 text-primary flex-shrink-0 animate-spin animation-duration-2000" />
-                                                                                            </div>
-                                                                                            <span className="font-mono text-xs text-primary">{getUserFriendlyToolName(detectedTag)}</span>
-                                                                                        </button>
-                                                                                    </div>
-                                                                                )}
+                                                                                        <div className="mt-2 mb-1">
+                                                                                            <button
+                                                                                                className="animate-shimmer inline-flex items-center gap-1.5 py-1 px-1 text-xs font-medium text-primary bg-muted hover:bg-muted/80 rounded-md transition-colors cursor-pointer border border-primary/20"
+                                                                                            >
+                                                                                                <div className='border-2 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center p-0.5 rounded-sm border-neutral-400/20 dark:border-neutral-600'>
+                                                                                                    <CircleDashed className="h-3.5 w-3.5 text-primary flex-shrink-0 animate-spin animation-duration-2000" />
+                                                                                                </div>
+                                                                                                <span className="font-mono text-xs text-primary">{getUserFriendlyToolName(detectedTag)}</span>
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    )}
 
                                                                                 {detectedTag === 'function_calls' && (
                                                                                     <div className="mt-2 mb-1">
@@ -731,43 +731,43 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                                                                             <span className="font-mono text-xs text-primary">
                                                                                                 {extractToolNameFromStream(streamingTextContent) || 'Using Tool...'}
                                                                                             </span>
-                                                                                        </button>
-                                                                                    </div>
-                                                                                )}
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    )}
 
-                                                                                {streamingToolCall && !detectedTag && (
-                                                                                    <div className="mt-2 mb-1">
-                                                                                        {(() => {
-                                                                                            const toolName = streamingToolCall.name || streamingToolCall.xml_tag_name || 'Tool';
-                                                                                            const IconComponent = getToolIcon(toolName);
-                                                                                            const paramDisplay = extractPrimaryParam(toolName, streamingToolCall.arguments || '');
-                                                                                            return (
-                                                                                                <button
-                                                                                                    className="animate-shimmer inline-flex items-center gap-1.5 py-1 px-1 text-xs font-medium text-primary bg-muted hover:bg-muted/80 rounded-md transition-colors cursor-pointer border border-primary/20"
-                                                                                                >
-                                                                                                    <div className='border-2 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center p-0.5 rounded-sm border-neutral-400/20 dark:border-neutral-600'>
-                                                                                                        <CircleDashed className="h-3.5 w-3.5 text-primary flex-shrink-0 animate-spin animation-duration-2000" />
-                                                                                                    </div>
-                                                                                                    <span className="font-mono text-xs text-primary">{toolName}</span>
-                                                                                                    {paramDisplay && <span className="ml-1 text-primary/70 truncate max-w-[200px]" title={paramDisplay}>{paramDisplay}</span>}
-                                                                                                </button>
-                                                                                            );
-                                                                                        })()}
-                                                                                    </div>
-                                                                                )}
-                                                                            </>
-                                                                        );
-                                                                    })()}
-                                                                </div>
-                                                            )}
+                                                                                    {streamingToolCall && !detectedTag && (
+                                                                                        <div className="mt-2 mb-1">
+                                                                                            {(() => {
+                                                                                                const toolName = streamingToolCall.name || streamingToolCall.xml_tag_name || 'Tool';
+                                                                                                const IconComponent = getToolIcon(toolName);
+                                                                                                const paramDisplay = extractPrimaryParam(toolName, streamingToolCall.arguments || '');
+                                                                                                return (
+                                                                                                    <button
+                                                                                                        className="animate-shimmer inline-flex items-center gap-1.5 py-1 px-1 text-xs font-medium text-primary bg-muted hover:bg-muted/80 rounded-md transition-colors cursor-pointer border border-primary/20"
+                                                                                                    >
+                                                                                                        <div className='border-2 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center p-0.5 rounded-sm border-neutral-400/20 dark:border-neutral-600'>
+                                                                                                            <CircleDashed className="h-3.5 w-3.5 text-primary flex-shrink-0 animate-spin animation-duration-2000" />
+                                                                                                        </div>
+                                                                                                        <span className="font-mono text-xs text-primary">{toolName}</span>
+                                                                                                        {paramDisplay && <span className="ml-1 text-primary/70 truncate max-w-[200px]" title={paramDisplay}>{paramDisplay}</span>}
+                                                                                                    </button>
+                                                                                                );
+                                                                                            })()}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </>
+                                                                            );
+                                                                        })()}
+                                                                    </div>
+                                                                )}
 
-                                                            {/* For playback mode, show streaming text and tool calls */}
+                                                                {/* For playback mode, show streaming text and tool calls */}
                                                             {readOnly && groupIndex === finalGroupedMessages.length - 1 && isStreamingText && (
-                                                                <div className="mt-2">
-                                                                    {(() => {
-                                                                        let detectedTag: string | null = null;
-                                                                        let tagStartIndex = -1;
-                                                                        if (streamingText) {
+                                                                    <div className="mt-2">
+                                                                        {(() => {
+                                                                            let detectedTag: string | null = null;
+                                                                            let tagStartIndex = -1;
+                                                                            if (streamingText) {
                                                                             // First check for new format
                                                                             const functionCallsIndex = streamingText.indexOf('<function_calls>');
                                                                             if (functionCallsIndex !== -1) {
@@ -783,49 +783,49 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                                                                         tagStartIndex = index;
                                                                                         break;
                                                                                     }
+                                                                                    }
                                                                                 }
                                                                             }
-                                                                        }
 
-                                                                        const textToRender = streamingText || '';
-                                                                        const textBeforeTag = detectedTag ? textToRender.substring(0, tagStartIndex) : textToRender;
-                                                                        const showCursor = isStreamingText && !detectedTag;
+                                                                            const textToRender = streamingText || '';
+                                                                            const textBeforeTag = detectedTag ? textToRender.substring(0, tagStartIndex) : textToRender;
+                                                                            const showCursor = isStreamingText && !detectedTag;
 
-                                                                        return (
-                                                                            <>
-                                                                                {/* In debug mode, show raw streaming content */}
-                                                                                {debugMode && streamingText ? (
-                                                                                    <pre className="text-xs font-mono whitespace-pre-wrap overflow-x-auto p-2 border border-border rounded-md bg-muted/30">
-                                                                                        {streamingText}
-                                                                                    </pre>
-                                                                                ) : (
-                                                                                    <>
-                                                                                        {textBeforeTag && (
+                                                                            return (
+                                                                                <>
+                                                                                    {/* In debug mode, show raw streaming content */}
+                                                                                    {debugMode && streamingText ? (
+                                                                                        <pre className="text-xs font-mono whitespace-pre-wrap overflow-x-auto p-2 border border-border rounded-md bg-muted/30">
+                                                                                            {streamingText}
+                                                                                        </pre>
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            {textBeforeTag && (
                                                                                             <Markdown className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none [&>:first-child]:mt-0 prose-headings:mt-3 break-words overflow-wrap-anywhere">{textBeforeTag}</Markdown>
-                                                                                        )}
-                                                                                        {showCursor && (
-                                                                                            <span className="inline-block h-4 w-0.5 bg-primary ml-0.5 -mb-1 animate-pulse" />
-                                                                                        )}
+                                                                                            )}
+                                                                                            {showCursor && (
+                                                                                                <span className="inline-block h-4 w-0.5 bg-primary ml-0.5 -mb-1 animate-pulse" />
+                                                                                            )}
 
-                                                                                        {detectedTag && (
-                                                                                            <div className="mt-2 mb-1">
-                                                                                                <button
-                                                                                                    className="animate-shimmer inline-flex items-center gap-1.5 py-1 px-2.5 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-colors cursor-pointer border border-primary/20"
-                                                                                                >
-                                                                                                    <CircleDashed className="h-3.5 w-3.5 text-primary flex-shrink-0 animate-spin animation-duration-2000" />
+                                                                                            {detectedTag && (
+                                                                                                <div className="mt-2 mb-1">
+                                                                                                    <button
+                                                                                                        className="animate-shimmer inline-flex items-center gap-1.5 py-1 px-2.5 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-colors cursor-pointer border border-primary/20"
+                                                                                                    >
+                                                                                                        <CircleDashed className="h-3.5 w-3.5 text-primary flex-shrink-0 animate-spin animation-duration-2000" />
                                                                                                     <span className="font-mono text-xs text-primary">
                                                                                                         {detectedTag === 'function_calls' ? (extractToolNameFromStream(streamingText) || 'Using Tool...') : detectedTag}
                                                                                                     </span>
-                                                                                                </button>
-                                                                                            </div>
-                                                                                        )}
-                                                                                    </>
-                                                                                )}
-                                                                            </>
-                                                                        );
-                                                                    })()}
-                                                                </div>
-                                                            )}
+                                                                                                    </button>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </>
+                                                                                    )}
+                                                                                </>
+                                                                            );
+                                                                        })()}
+                                                                    </div>
+                                                                )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -894,11 +894,11 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                         </div>
                                         
                                         {/* Streaming indicator content */}
-                                        <div className="max-w-[90%] px-4 py-3 text-sm">
-                                            <div className="flex items-center gap-1.5 py-1">
-                                                <div className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-pulse" />
-                                                <div className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-pulse delay-150" />
-                                                <div className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-pulse delay-300" />
+                                            <div className="max-w-[90%] px-4 py-3 text-sm">
+                                                <div className="flex items-center gap-1.5 py-1">
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-pulse" />
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-pulse delay-150" />
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-pulse delay-300" />
                                             </div>
                                         </div>
                                     </div>
