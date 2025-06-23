@@ -543,7 +543,7 @@ class ResponseProcessor:
                          if parsed_result:
                              tool_call, parsing_details = parsed_result
                              # Avoid adding if already processed during streaming
-                             if not any(exec['tool_call'] == tool_call for exec in pending_tool_executions):
+                             if not any(exec['tool_call'] == tool_call for exec_item in pending_tool_executions):
                                  final_tool_calls_to_process.append(tool_call)
                                  parsed_xml_data.append({'tool_call': tool_call, 'parsing_details': parsing_details})
 
