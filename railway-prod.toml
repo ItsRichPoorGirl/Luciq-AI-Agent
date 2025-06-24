@@ -10,7 +10,7 @@ restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
 [deploy.envs]
-ENV_MODE = "staging"
+ENV_MODE = "production"
 WORKERS = "2"
 THREADS = "2"
 WORKER_CONNECTIONS = "1000" 

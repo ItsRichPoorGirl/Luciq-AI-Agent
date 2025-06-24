@@ -1,0 +1,13 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "railway.Dockerfile"
+
+[deploy]
+startCommand = "uv run dramatiq --skip-logging --processes 2 --threads 2 run_agent_background"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[deploy.envs]
+ENV_MODE = "staging" 

@@ -18,6 +18,21 @@ This Railway deployment is a **Luciq-specific adaptation** that doesn't interfer
 2. All required API keys and environment variables
 3. Railway CLI (optional but recommended)
 
+## Environment Modes
+
+The application supports three environment modes:
+
+- **`local`**: Development environment (default)
+- **`staging`**: Testing/preview environment  
+- **`production`**: Live production environment
+
+### Railway Environment Mapping
+
+| Railway Environment | Use Configuration | ENV_MODE |
+|-------------------|------------------|----------|
+| Preview/Development | `railway.toml` + `railway-worker.toml` | `staging` |
+| Production | `railway-prod.toml` + `railway-worker-prod.toml` | `production` |
+
 ## Quick Setup
 
 ### 1. Create Railway Project
@@ -31,15 +46,20 @@ railway link
 ```
 
 ### 2. Configure Services
-Railway will automatically detect the `railway.toml` configuration and use the `railway.Dockerfile`.
+Railway will automatically detect the configuration files based on your environment.
+
+**Important**: You need to create TWO services in Railway:
+1. **Main API Service**: Uses `railway.toml` (staging) or `railway-prod.toml` (production)
+2. **Worker Service**: Uses `railway-worker.toml` (staging) or `railway-worker-prod.toml` (production)
 
 ### 3. Set Environment Variables
-Add these environment variables in Railway dashboard:
+Add these environment variables in Railway dashboard for BOTH services:
 
 #### Required Environment Variables
 ```bash
-# Environment Mode
-ENV_MODE=production
+# Environment Mode (automatically set by Railway config)
+# ENV_MODE=staging  # for preview environment
+# ENV_MODE=production  # for production environment
 
 # Database (Supabase)
 SUPABASE_URL=your-supabase-url
@@ -109,6 +129,34 @@ GitHub Actions → GitHub Container Registry → SSH → Docker Compose → Prod
 Railway Build → Railway Container Registry → Railway Runtime → Railway Infrastructure
 ```
 
+## Multiple Services Setup
+
+### Service 1: Main API
+- **Staging**: `railway.toml` + `railway.Dockerfile`
+- **Production**: `railway-prod.toml` + `railway.Dockerfile`
+- **Command**: Gunicorn web server
+- **Port**: `$PORT` (Railway assigned)
+
+### Service 2: Worker
+- **Staging**: `railway-worker.toml` + `railway.Dockerfile`
+- **Production**: `railway-worker-prod.toml` + `railway.Dockerfile`
+- **Command**: Dramatiq worker
+- **Port**: Not exposed (background processing)
+
+## Environment-Specific Configuration
+
+### Staging Environment (Preview)
+- Uses `staging` environment mode
+- Same Stripe configuration as production (for testing)
+- Reduced resource limits
+- Debug logging enabled
+
+### Production Environment
+- Uses `production` environment mode
+- Production Stripe configuration
+- Optimized resource allocation
+- Production logging levels
+
 ## Troubleshooting Common Issues
 
 ### 1. Build Failures
@@ -133,6 +181,8 @@ Railway Build → Railway Container Registry → Railway Runtime → Railway Inf
 - Verify all required environment variables are set in Railway
 - Check variable names match exactly (case-sensitive)
 - Use Railway's environment variable validation
+- **Important**: Set environment variables for BOTH services
+- **Important**: Don't override `ENV_MODE` - it's set by the Railway config
 
 ### 4. Port Configuration
 **Problem**: Service not accessible
@@ -163,13 +213,33 @@ Railway Build → Railway Container Registry → Railway Runtime → Railway Inf
 - Ensure connection strings are correct
 - Check SSL settings match your provider
 
+### 8. Worker Service Issues
+**Problem**: Worker service fails to start or can't find modules
+**Solutions**:
+- Ensure both services use the same `railway.Dockerfile`
+- Verify `dramatiq` is in `pyproject.toml` dependencies
+- Check that environment variables are set for both services
+- Monitor worker logs separately from API logs
+
+### 9. Environment Mode Issues
+**Problem**: Application behaves differently than expected
+**Solutions**:
+- Verify `ENV_MODE` is set correctly in Railway config
+- Check that you're using the right configuration files for your environment
+- Ensure Stripe and other service configurations match your environment
+
 ## Monitoring and Logs
 
 ### View Logs
 ```bash
-railway logs
+# API service logs
 railway logs --service api
+
+# Worker service logs  
 railway logs --service worker
+
+# All logs
+railway logs
 ```
 
 ### Monitor Resources
@@ -194,6 +264,7 @@ railway logs --service worker
 2. **API Keys**: Rotate keys regularly
 3. **Access Control**: Use Railway's access controls
 4. **Monitoring**: Set up alerts for unusual activity
+5. **Environment Separation**: Use different API keys for staging vs production
 
 ## Support
 

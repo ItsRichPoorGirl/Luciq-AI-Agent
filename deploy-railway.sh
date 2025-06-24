@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Railway Deployment Script for Luciq AI Agent
-# This script helps deploy to Railway and troubleshoot issues
+# This script helps you deploy to Railway with the correct environment configuration
 
 set -e
 
@@ -34,15 +34,18 @@ print_info() {
 
 # Check if Railway CLI is installed
 if ! command -v railway &> /dev/null; then
-    print_error "Railway CLI not found. Install it with: npm install -g @railway/cli"
+    echo "❌ Railway CLI is not installed."
+    echo "Please install it first: npm install -g @railway/cli"
+    echo "Or visit: https://railway.app/cli"
     exit 1
 fi
 
 print_status "Railway CLI found"
 
 # Check if we're in a Railway project
-if [ ! -f "railway.toml" ]; then
-    print_error "railway.toml not found. Make sure you're in the project directory."
+if ! railway status &> /dev/null; then
+    echo "❌ Not in a Railway project directory."
+    echo "Please run 'railway login' and 'railway init' first."
     exit 1
 fi
 
@@ -92,21 +95,81 @@ echo ""
 print_info "Environment variables:"
 railway variables
 
-# Ask user if they want to deploy
+# Ask user for environment
 echo ""
-read -p "Do you want to deploy to Railway? (y/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    print_info "Deploying to Railway..."
-    railway up
-    
-    echo ""
-    print_status "Deployment initiated!"
-    print_info "Monitor deployment with: railway logs --tail"
-    print_info "Check status with: railway status"
-else
-    print_info "Deployment cancelled."
-fi
+echo "Which environment do you want to deploy to?"
+echo "1) Preview/Staging (uses staging config)"
+echo "2) Production (uses production config)"
+echo ""
+read -p "Enter your choice (1 or 2): " env_choice
+
+case $env_choice in
+    1)
+        echo "🎯 Deploying to Preview/Staging environment..."
+        echo "Using: railway.toml + railway-worker.toml"
+        echo "ENV_MODE will be set to: staging"
+        
+        # Check if staging configs exist
+        if [ ! -f "railway.toml" ] || [ ! -f "railway-worker.toml" ]; then
+            echo "❌ Staging configuration files not found!"
+            echo "Please ensure railway.toml and railway-worker.toml exist."
+            exit 1
+        fi
+        
+        # Deploy to preview environment
+        echo ""
+        echo "📦 Deploying main API service..."
+        railway up --service api
+        
+        echo ""
+        echo "📦 Deploying worker service..."
+        railway up --service worker
+        
+        ;;
+    2)
+        echo "🚀 Deploying to Production environment..."
+        echo "Using: railway-prod.toml + railway-worker-prod.toml"
+        echo "ENV_MODE will be set to: production"
+        
+        # Check if production configs exist
+        if [ ! -f "railway-prod.toml" ] || [ ! -f "railway-worker-prod.toml" ]; then
+            echo "❌ Production configuration files not found!"
+            echo "Please ensure railway-prod.toml and railway-worker-prod.toml exist."
+            exit 1
+        fi
+        
+        # Deploy to production environment
+        echo ""
+        echo "📦 Deploying main API service..."
+        railway up --service api --environment production
+        
+        echo ""
+        echo "📦 Deploying worker service..."
+        railway up --service worker --environment production
+        
+        ;;
+    *)
+        echo "❌ Invalid choice. Please run the script again and select 1 or 2."
+        exit 1
+        ;;
+esac
+
+echo ""
+echo "✅ Deployment completed!"
+echo ""
+echo "📋 Next steps:"
+echo "1. Check Railway dashboard for deployment status"
+echo "2. Verify environment variables are set correctly"
+echo "3. Test the health endpoint: https://your-domain.railway.app/api/health"
+echo "4. Monitor logs: railway logs"
+echo ""
+echo "🔧 If you encounter issues:"
+echo "- Check RAILWAY_DEPLOYMENT.md for troubleshooting"
+echo "- Verify all required environment variables are set"
+echo "- Ensure both API and worker services are running"
+echo ""
+echo "🌐 Your application should be available at:"
+railway domain
 
 echo ""
 print_status "Railway deployment check complete!"
