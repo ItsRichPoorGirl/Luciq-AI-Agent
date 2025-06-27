@@ -25,6 +25,9 @@ from services import transcription as transcription_api
 from services.mcp_custom import discover_custom_tools
 import sys
 from services import email_api
+import os
+import sentry_sdk
+from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 
 
 load_dotenv()
@@ -39,6 +42,15 @@ instance_id = "single"
 # Rate limiter state
 ip_tracker = OrderedDict()
 MAX_CONCURRENT_IPS = 25
+
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        traces_sample_rate=1.0,      # Capture 100% of performance traces in staging
+        profiles_sample_rate=1.0,    # Capture 100% of profiling data in staging
+        environment=os.getenv("ENV_MODE", "staging"),
+    )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -98,6 +110,9 @@ async def lifespan(app: FastAPI):
         raise
 
 app = FastAPI(lifespan=lifespan)
+
+if sentry_dsn:
+    app = SentryAsgiMiddleware(app)
 
 @app.middleware("http")
 async def log_requests_middleware(request: Request, call_next):
@@ -212,6 +227,10 @@ async def discover_custom_mcp_tools(request: CustomMCPDiscoverRequest):
     except Exception as e:
         logger.error(f"Error discovering custom MCP tools: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
 
 if __name__ == "__main__":
     import uvicorn

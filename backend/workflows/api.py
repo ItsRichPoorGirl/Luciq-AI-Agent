@@ -9,6 +9,7 @@ import uuid
 import json
 import asyncio
 from datetime import datetime, timezone
+import os
 
 from .models import (
     WorkflowDefinition, WorkflowCreateRequest, WorkflowUpdateRequest,
@@ -448,6 +449,8 @@ async def execute_workflow(
             if 'updated_at' in workflow_dict and workflow_dict['updated_at']:
                 workflow_dict['updated_at'] = workflow_dict['updated_at'].isoformat()
         
+        webhook_base_url = os.getenv('WEBHOOK_BASE_URL', 'https://luciq-ai-backend.fly.dev')
+        
         run_workflow_background.send(
             execution_id=execution_id,
             workflow_id=workflow_id,
@@ -798,12 +801,9 @@ async def update_workflow_flow(
         telegram_triggers = [trigger for trigger in updated_workflow.triggers if trigger.type == 'WEBHOOK' and trigger.config.get('type') == 'telegram']
         if telegram_triggers:
             try:
-                import os
-                base_url = (
-                    os.getenv('WEBHOOK_BASE_URL', 'http://localhost:3000')
-                )
+                webhook_base_url = os.getenv('WEBHOOK_BASE_URL', 'https://luciq-ai-backend.fly.dev')
                 
-                await _setup_telegram_webhooks_for_workflow(updated_workflow, base_url)
+                await _setup_telegram_webhooks_for_workflow(updated_workflow, webhook_base_url)
                 logger.info(f"Processed Telegram webhook setup for workflow {workflow_id}")
             except Exception as e:
                 logger.warning(f"Failed to set up Telegram webhooks for workflow {workflow_id}: {e}")
