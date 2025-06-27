@@ -111,9 +111,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-if sentry_dsn:
-    app = SentryAsgiMiddleware(app)
-
 @app.middleware("http")
 async def log_requests_middleware(request: Request, call_next):
     structlog.contextvars.clear_contextvars()
@@ -231,6 +228,10 @@ async def discover_custom_mcp_tools(request: CustomMCPDiscoverRequest):
 @app.get("/sentry-debug")
 async def trigger_error():
     division_by_zero = 1 / 0
+
+# Apply Sentry middleware at the very end, after all middleware and routes are registered
+if sentry_dsn:
+    app = SentryAsgiMiddleware(app)
 
 if __name__ == "__main__":
     import uvicorn
