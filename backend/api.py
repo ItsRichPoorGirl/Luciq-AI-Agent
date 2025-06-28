@@ -25,7 +25,7 @@ from flags import api as feature_flags_api
 from services import transcription as transcription_api
 from services.mcp_custom import discover_custom_tools
 import sys
-from email import api as email_api
+from services import email_api
 import os
 import sentry_sdk
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
