@@ -22,7 +22,6 @@ import { WorkflowInfo } from '@/components/thread/workflow-info';
 import { useAddUserMessageMutation } from '@/hooks/react-query/threads/use-messages';
 import { useStartAgentMutation, useStopAgentMutation } from '@/hooks/react-query/threads/use-agent-run';
 import { useSubscription } from '@/hooks/react-query/subscriptions/use-subscriptions';
-import type { SubscriptionStatus } from '@/lib/api';
 
 import { UnifiedMessage, ApiMessageType, ToolCallInput, Project } from '../_types';
 import { useThreadData, useToolCalls, useBilling, useKeyboardShortcuts } from '../_hooks';
@@ -128,9 +127,7 @@ export default function ThreadPage({
   const workflowId = threadQuery.data?.metadata?.workflow_id;
 
   const { data: subscriptionData } = useSubscription();
-  const subscriptionStatus: SubscriptionStatus = subscriptionData?.status === 'active'
-    ? 'active'
-    : 'no_subscription';
+  const subscriptionStatus = subscriptionData;
 
   // Memoize project for VNC preloader to prevent re-preloading on every render
   const memoizedProject = useMemo(() => project, [project?.id, project?.sandbox?.vnc_preview, project?.sandbox?.pass]);
@@ -501,7 +498,7 @@ export default function ThreadPage({
   useEffect(() => {
     if (initialLoadCompleted && subscriptionData) {
       const hasSeenUpgradeDialog = localStorage.getItem('suna_upgrade_dialog_displayed');
-      const isFreeTier = subscriptionStatus === 'no_subscription';
+      const isFreeTier = subscriptionStatus?.status === 'no_subscription';
       if (!hasSeenUpgradeDialog && isFreeTier && !isLocalMode()) {
         setShowUpgradeDialog(true);
       }

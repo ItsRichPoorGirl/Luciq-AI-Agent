@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import { Check, ChevronDown, Search, AlertTriangle, Crown, ArrowUpRight, Brain, Plus, Edit, Trash } from 'lucide-react';
 import {
   ModelOption,
-  SubscriptionStatus,
   STORAGE_KEY_MODEL,
   STORAGE_KEY_CUSTOM_MODELS,
   DEFAULT_FREE_MODEL_ID,
@@ -26,6 +25,7 @@ import {
   getCustomModels,
   MODELS // Import the centralized MODELS constant
 } from './_use-model-selection';
+import type { SubscriptionStatus } from '@/lib/api';
 import { PaywallDialog } from '@/components/payment/paywall-dialog';
 import { BillingModal } from '@/components/billing/billing-modal';
 import { cn } from '@/lib/utils';
@@ -228,7 +228,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   const premiumModels = sortedModels.filter(m => !getFreeModels().some(id => m.id.includes(id)));
 
-  const shouldDisplayAll = (!isLocalMode() && subscriptionStatus === 'no_subscription') && premiumModels.length > 0;
+  const shouldDisplayAll = (!isLocalMode() && subscriptionStatus?.status === 'no_subscription') && premiumModels.length > 0;
 
   // Handle opening the custom model dialog
   const openAddCustomModelDialog = (e?: React.MouseEvent) => {

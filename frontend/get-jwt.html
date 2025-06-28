@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Get JWT Token</title>
+</head>
+<body>
+    <h1>JWT Token Extractor</h1>
+    <p>Open the browser console and run this command:</p>
+    <pre>
+// Get JWT from cookies
+const cookies = document.cookie.split(';');
+const authCookie = cookies.find(cookie => cookie.trim().startsWith('sb-') && cookie.includes('auth-token'));
+if (authCookie) {
+    const token = authCookie.split('=')[1];
+    console.log('JWT Token:', token);
+    // Copy to clipboard
+    navigator.clipboard.writeText(token).then(() => {
+        console.log('JWT copied to clipboard!');
+    });
+} else {
+    console.log('No auth token found. Make sure you are logged in.');
+}
+    </pre>
+    
+    <p>Or use this one-liner:</p>
+    <pre>
+document.cookie.split(';').find(c => c.trim().startsWith('sb-') && c.includes('auth-token'))?.split('=')[1]
+    </pre>
+</body>
+</html> 
