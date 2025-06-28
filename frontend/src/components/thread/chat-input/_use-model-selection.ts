@@ -183,7 +183,7 @@ export const canAccessModel = (
   if (isLocalMode()) {
     return true;
   }
-  return subscriptionStatus?.status === 'active' || !requiresSubscription;
+  return subscriptionStatus?.status === 'active' || subscriptionStatus?.status === 'admin_unlimited' || !requiresSubscription;
 };
 
 // Helper to format a model name for display
@@ -380,7 +380,7 @@ export const useModelSelection = () => {
       }
       
       // Premium subscription - ALWAYS use premium model
-      if (subscriptionStatus?.status === 'active') {
+      if (subscriptionStatus?.status === 'active' || subscriptionStatus?.status === 'admin_unlimited') {
         // If they had a premium model saved and it's still valid, use it
         const hasSavedPremiumModel = savedModel && 
           MODEL_OPTIONS.find(option => 
