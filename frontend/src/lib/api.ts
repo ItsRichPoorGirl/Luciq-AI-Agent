@@ -2045,7 +2045,7 @@ export const getWorkflow = async (workflowId: string): Promise<Workflow> => {
     }
 
     // Get workflow metadata
-    const response = await fetch(`${API_URL}/workflows/${workflowId}`, {
+    const response = await fetch(`${API_URL}/api/workflows/${workflowId}`, {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
@@ -2066,7 +2066,7 @@ export const getWorkflow = async (workflowId: string): Promise<Workflow> => {
       metadata: {} 
     };
     try {
-      const flowResponse = await fetch(`${API_URL}/workflows/${workflowId}/flow`, {
+      const flowResponse = await fetch(`${API_URL}/api/workflows/${workflowId}/flow`, {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -2160,7 +2160,7 @@ export const createWorkflow = async (workflowData: {
         }
       };
 
-      const updateResponse = await fetch(`${API_URL}/workflows/${newWorkflow.id}/flow`, {
+      const updateResponse = await fetch(`${API_URL}/api/workflows/${newWorkflow.id}/flow`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -2216,7 +2216,7 @@ export const updateWorkflow = async (
 
     // Step 1: Update basic workflow metadata if provided
     if (Object.keys(metadataUpdates).length > 0) {
-      const response = await fetch(`${API_URL}/workflows/${workflowId}`, {
+      const response = await fetch(`${API_URL}/api/workflows/${workflowId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -2249,7 +2249,7 @@ export const updateWorkflow = async (
         }
       };
 
-      const flowResponse = await fetch(`${API_URL}/workflows/${workflowId}/flow`, {
+      const flowResponse = await fetch(`${API_URL}/api/workflows/${workflowId}/flow`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -2286,7 +2286,7 @@ export const deleteWorkflow = async (workflowId: string): Promise<void> => {
       throw new NoAccessTokenAvailableError();
     }
 
-    const response = await fetch(`${API_URL}/workflows/${workflowId}`, {
+    const response = await fetch(`${API_URL}/api/workflows/${workflowId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${session.access_token}`,
@@ -2319,7 +2319,7 @@ export const executeWorkflow = async (
       throw new NoAccessTokenAvailableError();
     }
 
-    const response = await fetch(`${API_URL}/workflows/${workflowId}/execute?deterministic=false`, {
+    const response = await fetch(`${API_URL}/api/workflows/${workflowId}/execute?deterministic=false`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2364,7 +2364,7 @@ export const streamWorkflowExecution = (
       }
 
       const eventSource = new EventSource(
-        `${API_URL}/workflows/execution/${executionId}/stream?token=${session.access_token}`
+        `${API_URL}/api/workflows/execution/${executionId}/stream?token=${session.access_token}`
       );
 
       eventSource.onmessage = (event) => {
@@ -2420,7 +2420,7 @@ export const getWorkflowExecutions = async (workflowId: string): Promise<Workflo
       throw new NoAccessTokenAvailableError();
     }
 
-    const response = await fetch(`${API_URL}/workflows/${workflowId}/executions`, {
+    const response = await fetch(`${API_URL}/api/workflows/${workflowId}/executions`, {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
@@ -2454,7 +2454,7 @@ export const getExecutionStatus = async (
       throw new NoAccessTokenAvailableError();
     }
 
-    const response = await fetch(`${API_URL}/workflows/execution/${executionId}`, {
+    const response = await fetch(`${API_URL}/api/workflows/execution/${executionId}`, {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
@@ -2485,7 +2485,7 @@ export const cancelExecution = async (executionId: string): Promise<void> => {
       throw new NoAccessTokenAvailableError();
     }
 
-    const response = await fetch(`${API_URL}/workflows/execution/${executionId}/cancel`, {
+    const response = await fetch(`${API_URL}/api/workflows/execution/${executionId}/cancel`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${session.access_token}`,

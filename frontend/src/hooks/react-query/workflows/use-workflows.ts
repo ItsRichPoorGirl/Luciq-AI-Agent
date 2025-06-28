@@ -106,21 +106,21 @@ const api = {
   workflows: {
     list: async (): Promise<WorkflowDefinition[]> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows`, { headers });
+      const response = await fetch(`${API_URL}/api/workflows`, { headers });
       if (!response.ok) throw new Error('Failed to fetch workflows');
       return response.json();
     },
 
     get: async (id: string): Promise<WorkflowDefinition> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/${id}`, { headers });
+      const response = await fetch(`${API_URL}/api/workflows/${id}`, { headers });
       if (!response.ok) throw new Error('Failed to fetch workflow');
       return response.json();
     },
 
     create: async (workflow: Partial<WorkflowDefinition>): Promise<WorkflowDefinition> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows`, {
+      const response = await fetch(`${API_URL}/api/workflows`, {
         method: 'POST',
         headers,
         body: JSON.stringify(workflow),
@@ -131,7 +131,7 @@ const api = {
 
     update: async ({ id, ...updates }: { id: string } & Partial<WorkflowDefinition>): Promise<WorkflowDefinition> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/${id}`, {
+      const response = await fetch(`${API_URL}/api/workflows/${id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(updates),
@@ -142,7 +142,7 @@ const api = {
 
     delete: async (id: string): Promise<void> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/${id}`, {
+      const response = await fetch(`${API_URL}/api/workflows/${id}`, {
         method: 'DELETE',
         headers,
       });
@@ -151,7 +151,7 @@ const api = {
 
     execute: async ({ id, variables }: { id: string; variables?: Record<string, any> }): Promise<WorkflowExecution> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/${id}/execute`, {
+      const response = await fetch(`${API_URL}/api/workflows/${id}/execute`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ variables }),
@@ -162,7 +162,7 @@ const api = {
 
     getFlow: async (id: string): Promise<WorkflowFlow> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/${id}/flow`, { headers });
+      const response = await fetch(`${API_URL}/api/workflows/${id}/flow`, { headers });
       if (!response.ok) throw new Error('Failed to fetch workflow flow');
       return response.json();
     },
@@ -174,7 +174,7 @@ const api = {
       metadata: Partial<WorkflowFlow['metadata']> 
     }): Promise<WorkflowDefinition> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/${id}/flow`, {
+      const response = await fetch(`${API_URL}/api/workflows/${id}/flow`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({ nodes, edges, metadata }),
@@ -189,7 +189,7 @@ const api = {
       metadata: Partial<WorkflowDefinition>;
     }): Promise<WorkflowDefinition> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/builder/convert`, {
+      const response = await fetch(`${API_URL}/api/workflows/builder/convert`, {
         method: 'POST',
         headers: {
           ...headers,
@@ -203,7 +203,7 @@ const api = {
 
     validateFlow: async ({ nodes, edges }: { nodes: WorkflowNode[]; edges: WorkflowEdge[] }): Promise<{ valid: boolean; errors: string[] }> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/builder/validate`, {
+      const response = await fetch(`${API_URL}/api/workflows/builder/validate`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ nodes, edges }),
@@ -214,14 +214,14 @@ const api = {
 
     getBuilderNodes: async (): Promise<any[]> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/builder/nodes`, { headers });
+      const response = await fetch(`${API_URL}/api/workflows/builder/nodes`, { headers });
       if (!response.ok) throw new Error('Failed to fetch builder nodes');
       return response.json();
     },
 
     getTemplates: async (): Promise<any[]> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/templates`, { headers });
+      const response = await fetch(`${API_URL}/api/workflows/templates`, { headers });
       if (!response.ok) throw new Error('Failed to fetch templates');
       return response.json();
     },
@@ -232,7 +232,7 @@ const api = {
       projectId: string;
     }): Promise<WorkflowDefinition> => {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_URL}/workflows/templates/${templateId}/create`, {
+      const response = await fetch(`${API_URL}/api/workflows/templates/${templateId}/create`, {
         method: 'POST',
         headers: {
           ...headers,
