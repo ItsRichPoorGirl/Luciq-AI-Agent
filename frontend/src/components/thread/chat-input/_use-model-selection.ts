@@ -10,8 +10,6 @@ export const STORAGE_KEY_CUSTOM_MODELS = 'customModels';
 export const DEFAULT_FREE_MODEL_ID = 'deepseek';
 export const DEFAULT_PREMIUM_MODEL_ID = 'claude-sonnet-4';
 
-export type SubscriptionStatus = 'no_subscription' | 'active';
-
 export interface ModelOption {
   id: string;
   label: string;

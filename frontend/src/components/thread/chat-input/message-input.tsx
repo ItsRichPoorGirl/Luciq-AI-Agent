@@ -7,7 +7,7 @@ import { UploadedFile } from './chat-input';
 import { FileUploadHandler } from './file-upload-handler';
 import { VoiceRecorder } from './voice-recorder';
 import { ModelSelector } from './model-selector';
-import { SubscriptionStatus } from './_use-model-selection';
+import type { SubscriptionStatus } from '@/lib/api';
 import { isLocalMode } from '@/lib/config';
 import { TooltipContent } from '@/components/ui/tooltip';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -152,7 +152,7 @@ export const MessageInput = forwardRef<HTMLTextAreaElement, MessageInputProps>(
               disabled={loading || (disabled && !isAgentRunning)}
             />
           </div>
-          {(subscriptionStatus === 'no_subscription' || subscriptionStatus === undefined) && subscriptionStatus !== 'admin_unlimited' && !isLocalMode() &&
+          {(subscriptionStatus?.status === 'no_subscription' || subscriptionStatus === undefined) && subscriptionStatus?.status !== 'admin_unlimited' && !isLocalMode() &&
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
@@ -202,7 +202,7 @@ export const MessageInput = forwardRef<HTMLTextAreaElement, MessageInputProps>(
             </Button>
           </div>
         </div>
-        {(subscriptionStatus === 'no_subscription' || subscriptionStatus === undefined) && subscriptionStatus !== 'admin_unlimited' && !isLocalMode() &&
+        {(subscriptionStatus?.status === 'no_subscription' || subscriptionStatus === undefined) && subscriptionStatus?.status !== 'admin_unlimited' && !isLocalMode() &&
           <div className='sm:hidden absolute -bottom-8 left-0 right-0 flex justify-center'>
             <p className='text-xs text-amber-500 px-2 py-1'>
               Upgrade for better performance
