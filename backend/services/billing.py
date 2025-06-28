@@ -716,6 +716,24 @@ async def get_subscription(
 ):
     """Get the current subscription status for the current user, including scheduled changes."""
     try:
+        # Admin bypass - check if user is admin
+        admin_user_ids = config.get_admin_user_ids
+        if current_user_id in admin_user_ids:
+            logger.info(f"Admin subscription bypass activated for user ID: {current_user_id}")
+            return SubscriptionStatus(
+                status="admin_unlimited",
+                plan_name="Admin Unlimited",
+                price_id=None,
+                current_period_end=None,
+                cancel_at_period_end=False,
+                trial_end=None,
+                minutes_limit=None,
+                current_usage=None,
+                has_schedule=False,
+                scheduled_plan_name=None,
+                scheduled_price_id=None,
+                scheduled_change_date=None
+            )
         # Get subscription from Stripe (this helper already handles filtering/cleanup)
         subscription = await get_user_subscription(current_user_id)
         # print("Subscription data for status:", subscription)
