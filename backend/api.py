@@ -20,15 +20,23 @@ import uuid
 # Import the agent API module
 from agent import api as agent_api
 from sandbox import api as sandbox_api
-from services import billing as billing_api
-from flags import api as feature_flags_api
+from billing import api as billing_api
+from feature_flags import api as feature_flags_api
+from transcription import api as transcription_api
 from services import transcription as transcription_api
 from services.mcp_custom import discover_custom_tools
 import sys
-from services import email_api
+from email import api as email_api
 import os
 import sentry_sdk
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+
+from workflows import api as workflows_api
+from webhooks import api as webhooks_api
+from scheduling import api as scheduling_api
+from knowledge_base import api as knowledge_base_api
+from mcp_local import api as mcp_api
+from mcp_local import secure_api as secure_mcp_api
 
 
 load_dotenv()
@@ -192,27 +200,20 @@ app.include_router(workflows_api.router, prefix="")  # This makes /workflows/...
 # Add secure MCP router without /api prefix to handle frontend requests
 app.include_router(secure_mcp_api.router, prefix="")  # This makes /credentials/, /templates/, etc. work
 
-from mcp_local import api as mcp_api
-from mcp_local import secure_api as secure_mcp_api
-
 app.include_router(mcp_api.router, prefix="/api")
 app.include_router(secure_mcp_api.router, prefix="/api/secure-mcp")
 
 app.include_router(transcription_api.router, prefix="/api")
 app.include_router(email_api.router, prefix="/api")
 
-from workflows import api as workflows_api
 workflows_api.initialize(db)
 app.include_router(workflows_api.router, prefix="/api")
 
-from webhooks import api as webhooks_api
 webhooks_api.initialize(db)
 app.include_router(webhooks_api.router, prefix="/api")
 
-from scheduling import api as scheduling_api
 app.include_router(scheduling_api.router)
 
-from knowledge_base import api as knowledge_base_api
 app.include_router(knowledge_base_api.router, prefix="/api")
 
 @app.get("/api/health")
