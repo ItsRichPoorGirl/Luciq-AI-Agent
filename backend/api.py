@@ -183,6 +183,15 @@ app.include_router(feature_flags_api.router, prefix="/api")
 app.include_router(billing_api.router, prefix="")  # This makes /billing/... work
 app.include_router(feature_flags_api.router, prefix="")  # This makes /feature-flags/... work
 
+# Add agents router without /api prefix to handle frontend requests
+app.include_router(agent_api.router, prefix="")  # This makes /agents/... work
+
+# Add workflows router without /api prefix to handle frontend requests
+app.include_router(workflows_api.router, prefix="")  # This makes /workflows/... work
+
+# Add secure MCP router without /api prefix to handle frontend requests
+app.include_router(secure_mcp_api.router, prefix="")  # This makes /credentials/, /templates/, etc. work
+
 from mcp_local import api as mcp_api
 from mcp_local import secure_api as secure_mcp_api
 
