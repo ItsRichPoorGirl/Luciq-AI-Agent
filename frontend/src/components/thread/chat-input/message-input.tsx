@@ -152,12 +152,11 @@ export const MessageInput = forwardRef<HTMLTextAreaElement, MessageInputProps>(
               disabled={loading || (disabled && !isAgentRunning)}
             />
           </div>
-          {subscriptionStatus === 'no_subscription' && !isLocalMode() &&
+          {(subscriptionStatus === 'no_subscription' || subscriptionStatus === undefined) && subscriptionStatus !== 'admin_unlimited' && !isLocalMode() &&
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
                   <p className='text-sm text-amber-500 hidden sm:block'>Upgrade for full performance</p>
-
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>The free tier is severely limited by inferior models; upgrade to experience the true full Suna experience.</p>
@@ -203,7 +202,7 @@ export const MessageInput = forwardRef<HTMLTextAreaElement, MessageInputProps>(
             </Button>
           </div>
         </div>
-        {subscriptionStatus === 'no_subscription' && !isLocalMode() &&
+        {(subscriptionStatus === 'no_subscription' || subscriptionStatus === undefined) && subscriptionStatus !== 'admin_unlimited' && !isLocalMode() &&
           <div className='sm:hidden absolute -bottom-8 left-0 right-0 flex justify-center'>
             <p className='text-xs text-amber-500 px-2 py-1'>
               Upgrade for better performance
