@@ -930,6 +930,46 @@ async def get_available_models(
                 "total_models": len(model_info)
             }
         
+        # Admin bypass - check if user is admin
+        try:
+            admin_user_ids = config.get_admin_user_ids
+            logger.info(f"DEBUG: admin_user_ids={admin_user_ids}, user_id={current_user_id}")
+            if current_user_id in admin_user_ids:
+                logger.info(f"Admin model access bypass activated for user ID: {current_user_id}")
+                
+                # Return ALL models from the system with proper structure
+                all_models = set()
+                model_aliases = {}
+                
+                for short_name, full_name in MODEL_NAME_ALIASES.items():
+                    all_models.add(full_name)
+                    if short_name != full_name and not short_name.startswith("openai/") and not short_name.startswith("anthropic/") and not short_name.startswith("openrouter/") and not short_name.startswith("xai/"):
+                        if full_name not in model_aliases:
+                            model_aliases[full_name] = short_name
+                
+                # Create model info for admin with ALL models available
+                admin_model_info = []
+                for model in all_models:
+                    display_name = model_aliases.get(model, model.split('/')[-1] if '/' in model else model)
+                    
+                    admin_model_info.append({
+                        "id": model,
+                        "display_name": display_name,
+                        "short_name": model_aliases.get(model),
+                        "requires_subscription": False,  # Admin gets everything for free
+                        "is_available": True  # Admin gets access to everything
+                    })
+                
+                return {
+                    "models": admin_model_info,
+                    "subscription_tier": "Admin Unlimited",
+                    "total_models": len(admin_model_info)
+                }
+            else:
+                logger.info(f"DEBUG: User {current_user_id} not in admin list {admin_user_ids}")
+        except Exception as e:
+            logger.warning(f"Error checking admin status for model access for user {current_user_id}: {str(e)}")
+        
         # For non-local mode, get list of allowed models for this user
         allowed_models = await get_allowed_models_for_user(client, current_user_id)
         free_tier_models = MODEL_ACCESS_TIERS.get('free', [])

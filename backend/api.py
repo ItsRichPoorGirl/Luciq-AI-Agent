@@ -13,6 +13,7 @@ from utils.logger import logger, structlog
 import time
 from collections import OrderedDict
 from typing import Dict, Any
+from utils.auth_utils import get_current_user_id_from_jwt
 
 from pydantic import BaseModel
 import uuid
@@ -74,16 +75,17 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to initialize Redis connection: {e}")
             # Continue without Redis - the application will handle Redis failures gracefully
         
-        # Initialize feature flags for Luciq deployment - TEMPORARILY DISABLED FOR DEBUGGING
-        # try:
-        #     from flags import flags
-        #     logger.info("Initializing Luciq feature flags...")
-        #     await flags.enable_flag("custom_agents", "Enable custom agent builder and management functionality")
-        #     await flags.enable_flag("agent_marketplace", "Enable agent marketplace for discovering and sharing agents")
-        #     logger.info("Luciq feature flags initialized successfully")
-        # except Exception as e:
-        #     logger.error(f"Failed to initialize feature flags: {e}")
-        #     # Continue without feature flags - they can be set manually later
+        # Initialize feature flags for Luciq deployment
+        try:
+            from flags import flags
+            logger.info("Initializing Luciq feature flags...")
+            await flags.enable_flag("custom_agents", "Enable custom agent builder and management functionality")
+            await flags.enable_flag("agent_marketplace", "Enable agent marketplace for discovering and sharing agents")
+            await flags.enable_flag("workflows", "Enable workflow automation functionality")
+            logger.info("Luciq feature flags initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize feature flags: {e}")
+            # Continue without feature flags - they can be set manually later
         
         # Start background tasks
         # asyncio.create_task(agent_api.restore_running_agent_runs())
@@ -209,6 +211,27 @@ async def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "instance_id": instance_id
     }
+
+@app.get("/api/debug/admin-status")
+async def debug_admin_status(current_user_id: str = Depends(get_current_user_id_from_jwt)):
+    """Debug endpoint to check admin bypass status."""
+    try:
+        admin_user_ids = config.get_admin_user_ids
+        is_admin = current_user_id in admin_user_ids
+        
+        return {
+            "current_user_id": current_user_id,
+            "admin_user_ids": admin_user_ids,
+            "is_admin": is_admin,
+            "env_mode": config.ENV_MODE.value,
+            "admin_user_ids_env": os.getenv("ADMIN_USER_IDS", "NOT_SET")
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "current_user_id": current_user_id,
+            "env_mode": config.ENV_MODE.value
+        }
 
 class CustomMCPDiscoverRequest(BaseModel):
     type: str
