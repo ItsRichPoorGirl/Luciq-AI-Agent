@@ -4,6 +4,7 @@ import { useSubscription } from '@/hooks/react-query/subscriptions/use-subscript
 import { useState, useEffect, useMemo } from 'react';
 import { isLocalMode } from '@/lib/config';
 import { useAvailableModels } from '@/hooks/react-query/subscriptions/use-model';
+import type { SubscriptionStatus } from '@/lib/api';
 
 export const STORAGE_KEY_MODEL = 'suna-preferred-model';
 export const STORAGE_KEY_CUSTOM_MODELS = 'customModels';
@@ -182,7 +183,7 @@ export const canAccessModel = (
   if (isLocalMode()) {
     return true;
   }
-  return subscriptionStatus === 'active' || !requiresSubscription;
+  return subscriptionStatus?.status === 'active' || !requiresSubscription;
 };
 
 // Helper to format a model name for display
@@ -241,9 +242,7 @@ export const useModelSelection = () => {
     refetchOnMount: false,
   });
   
-  const subscriptionStatus: SubscriptionStatus = subscriptionData?.status === 'active' 
-    ? 'active' 
-    : 'no_subscription';
+  const subscriptionStatus = subscriptionData;
 
   // Function to refresh custom models from localStorage
   const refreshCustomModels = () => {
@@ -381,7 +380,7 @@ export const useModelSelection = () => {
       }
       
       // Premium subscription - ALWAYS use premium model
-      if (subscriptionStatus === 'active') {
+      if (subscriptionStatus?.status === 'active') {
         // If they had a premium model saved and it's still valid, use it
         const hasSavedPremiumModel = savedModel && 
           MODEL_OPTIONS.find(option => 
