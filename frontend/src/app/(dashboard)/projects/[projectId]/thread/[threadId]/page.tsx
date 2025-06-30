@@ -22,12 +22,13 @@ import { WorkflowInfo } from '@/components/thread/workflow-info';
 import { useAddUserMessageMutation } from '@/hooks/react-query/threads/use-messages';
 import { useStartAgentMutation, useStopAgentMutation } from '@/hooks/react-query/threads/use-agent-run';
 import { useSubscription } from '@/hooks/react-query/subscriptions/use-subscriptions';
+import { SubscriptionStatus } from '@/components/thread/chat-input/_use-model-selection';
 
 import { UnifiedMessage, ApiMessageType, ToolCallInput, Project } from '../_types';
 import { useThreadData, useToolCalls, useBilling, useKeyboardShortcuts } from '../_hooks';
 import { ThreadError, UpgradeDialog, ThreadLayout } from '../_components';
 import { useVncPreloader } from '@/hooks/useVncPreloader';
-import { useAgent } from '@/hooks/react-query/agents/use-agents';
+import { useThreadAgent } from '@/hooks/react-query/agents/use-agents';
 
 export default function ThreadPage({
   params,
@@ -51,6 +52,7 @@ export default function ThreadPage({
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
   const [initialPanelOpenAttempted, setInitialPanelOpenAttempted] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -123,11 +125,21 @@ export default function ThreadPage({
   const addUserMessageMutation = useAddUserMessageMutation();
   const startAgentMutation = useStartAgentMutation();
   const stopAgentMutation = useStopAgentMutation();
-  const { data: agent } = useAgent(threadQuery.data?.agent_id);
+  const { data: threadAgentData } = useThreadAgent(threadId);
+  const agent = threadAgentData?.agent;
   const workflowId = threadQuery.data?.metadata?.workflow_id;
 
+  // Set initial selected agent from thread data
+  useEffect(() => {
+    if (threadAgentData?.agent && !selectedAgentId) {
+      setSelectedAgentId(threadAgentData.agent.agent_id);
+    }
+  }, [threadAgentData, selectedAgentId]);
+
   const { data: subscriptionData } = useSubscription();
-  const subscriptionStatus = subscriptionData;
+  const subscriptionStatus: SubscriptionStatus = subscriptionData?.status === 'active'
+    ? 'active'
+    : 'no_subscription';
 
   // Memoize project for VNC preloader to prevent re-preloading on every render
   const memoizedProject = useMemo(() => project, [project?.id, project?.sandbox?.vnc_preview, project?.sandbox?.pass]);
@@ -270,7 +282,10 @@ export default function ThreadPage({
 
         const agentPromise = startAgentMutation.mutateAsync({
           threadId,
-          options
+          options: {
+            ...options,
+            agent_id: selectedAgentId
+          }
         });
 
         const results = await Promise.allSettled([messagePromise, agentPromise]);
@@ -498,7 +513,7 @@ export default function ThreadPage({
   useEffect(() => {
     if (initialLoadCompleted && subscriptionData) {
       const hasSeenUpgradeDialog = localStorage.getItem('suna_upgrade_dialog_displayed');
-      const isFreeTier = subscriptionStatus?.status === 'no_subscription';
+      const isFreeTier = subscriptionStatus === 'no_subscription';
       if (!hasSeenUpgradeDialog && isFreeTier && !isLocalMode()) {
         setShowUpgradeDialog(true);
       }
@@ -637,7 +652,7 @@ export default function ThreadPage({
               value={newMessage}
               onChange={setNewMessage}
               onSubmit={handleSubmitMessage}
-              placeholder={`Ask ${agent ? agent.name : 'Suna'} anything...`}
+              placeholder={`Describe what you need help with...`}
               loading={isSending}
               disabled={isSending || agentStatus === 'running' || agentStatus === 'connecting'}
               isAgentRunning={agentStatus === 'running' || agentStatus === 'connecting'}
@@ -647,6 +662,8 @@ export default function ThreadPage({
               sandboxId={sandboxId || undefined}
               messages={messages}
               agentName={agent && agent.name}
+              selectedAgentId={selectedAgentId}
+              onAgentSelect={setSelectedAgentId}
             />
           </div>
         </div>

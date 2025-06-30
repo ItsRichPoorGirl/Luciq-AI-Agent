@@ -19,9 +19,19 @@ import os
 # Initialize Stripe
 stripe.api_key = config.STRIPE_SECRET_KEY
 
+# Token price multiplier
+TOKEN_PRICE_MULTIPLIER = 1.5
+
 # Initialize router
 router = APIRouter(prefix="/billing", tags=["billing"])
 
+# Hardcoded pricing for specific models (prices per million tokens)
+HARDCODED_MODEL_PRICES = {
+    "openrouter/deepseek/deepseek-chat": {
+        "input_cost_per_million_tokens": 0.38,
+        "output_cost_per_million_tokens": 0.89
+    },
+}
 
 SUBSCRIPTION_TIERS = {
     config.STRIPE_FREE_TIER_ID: {'name': 'free', 'minutes': 60},
@@ -88,6 +98,21 @@ async def create_stripe_customer(client, user_id: str, email: str) -> str:
     }).execute()
     
     return customer.id
+
+def get_model_pricing(model: str) -> Optional[Tuple[float, float]]:
+    """
+    Get pricing for a model. Returns (input_cost_per_million, output_cost_per_million) or None.
+    
+    Args:
+        model: The model name to get pricing for
+        
+    Returns:
+        Tuple of (input_cost_per_million_tokens, output_cost_per_million_tokens) or None if not found
+    """
+    if model in HARDCODED_MODEL_PRICES:
+        pricing = HARDCODED_MODEL_PRICES[model]
+        return pricing["input_cost_per_million_tokens"], pricing["output_cost_per_million_tokens"]
+    return None
 
 async def get_user_subscription(user_id: str) -> Optional[Dict]:
     """Get the current subscription for a user from Stripe."""
@@ -1033,12 +1058,32 @@ async def get_available_models(
             # Check if model is available with current subscription
             is_available = model in allowed_models
             
+            # Get pricing information - check hardcoded prices first, then litellm
+            pricing_info = {}
+            
+            # Check if we have hardcoded pricing for this model
+            hardcoded_pricing = get_model_pricing(model)
+            if hardcoded_pricing:
+                input_cost_per_million, output_cost_per_million = hardcoded_pricing
+                pricing_info = {
+                    "input_cost_per_million_tokens": input_cost_per_million * TOKEN_PRICE_MULTIPLIER,
+                    "output_cost_per_million_tokens": output_cost_per_million * TOKEN_PRICE_MULTIPLIER,
+                    "max_tokens": None
+                }
+            else:
+                pricing_info = {
+                    "input_cost_per_million_tokens": None,
+                    "output_cost_per_million_tokens": None,
+                    "max_tokens": None
+                }
+
             model_info.append({
                 "id": model,
                 "display_name": display_name,
                 "short_name": model_aliases.get(model),
                 "requires_subscription": requires_sub,
-                "is_available": is_available
+                "is_available": is_available,
+                **pricing_info
             })
         
         return {

@@ -16,7 +16,7 @@ from flags.flags import is_enabled
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/schedules", tags=["schedules"])
+router = APIRouter(prefix="/v1/schedules", tags=["schedules"])
 
 db = DBConnection()
 workflow_executor = WorkflowExecutor(db)

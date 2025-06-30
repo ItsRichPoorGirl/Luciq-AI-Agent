@@ -193,11 +193,26 @@ app.include_router(feature_flags_api.router, prefix="")  # This makes /feature-f
 # Add agents router without /api prefix to handle frontend requests
 app.include_router(agent_api.router, prefix="")  # This makes /agents/... work
 
+# Add sandbox router without /api prefix to handle frontend requests
+app.include_router(sandbox_api.router, prefix="")  # This makes /project/.../sandbox/... work
+
 # Add workflows router without /api prefix to handle frontend requests
 app.include_router(workflows_api.router, prefix="")  # This makes /workflows/... work
 
+# Add scheduling router without /api prefix to handle frontend requests
+app.include_router(scheduling_api.router, prefix="")  # This makes /v1/schedules/... work
+
+# Add scheduling router with /api prefix for backward compatibility
+app.include_router(scheduling_api.router, prefix="/api")  # This makes /api/v1/schedules/... work
+
 # Add secure MCP router without /api prefix to handle frontend requests
 app.include_router(secure_mcp_api.router, prefix="")  # This makes /credentials/, /templates/, etc. work
+
+# Add secure MCP router with /secure-mcp prefix to handle frontend requests
+app.include_router(secure_mcp_api.router, prefix="/secure-mcp")  # This makes /secure-mcp/credential-profiles work
+
+# Add MCP router without /api prefix to handle frontend requests
+app.include_router(mcp_api.router, prefix="")  # This makes /mcp/... work
 
 app.include_router(mcp_api.router, prefix="/api")
 app.include_router(secure_mcp_api.router, prefix="/api/secure-mcp")
@@ -210,8 +225,6 @@ app.include_router(workflows_api.router, prefix="/api")
 
 webhooks_api.initialize(db)
 app.include_router(webhooks_api.router, prefix="/api")
-
-app.include_router(scheduling_api.router)
 
 app.include_router(knowledge_base_api.router, prefix="/api")
 
