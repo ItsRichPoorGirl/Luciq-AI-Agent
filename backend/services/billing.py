@@ -524,6 +524,16 @@ async def check_billing_status(client, user_id: str) -> Tuple[bool, str, Optiona
             "minutes_limit": "no limit"
         }
     
+    # Check for admin bypass first
+    from utils.auth_utils import is_admin_user
+    if is_admin_user(user_id):
+        logger.info(f"Admin bypass applied for user {user_id} - bypassing billing limits")
+        return True, "Admin access - billing limits bypassed", {
+            "price_id": "admin",
+            "plan_name": "Admin",
+            "minutes_limit": "no limit"
+        }
+    
     # Get current subscription
     subscription = await get_user_subscription(user_id)
     # print("Current subscription:", subscription)
