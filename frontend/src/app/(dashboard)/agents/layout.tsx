@@ -1,4 +1,3 @@
-import { agentPlaygroundFlagFrontend } from '@/flags';
 import { isFlagEnabled } from '@/lib/feature-flags';
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
@@ -18,5 +17,9 @@ export default async function AgentsLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const customAgentsEnabled = await isFlagEnabled('custom_agents');
+  if (!customAgentsEnabled) {
+    redirect('/dashboard');
+  }
   return <>{children}</>;
 }
