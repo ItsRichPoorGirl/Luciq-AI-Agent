@@ -68,6 +68,12 @@ export type Message = {
   role: string;
   content: string;
   type: string;
+  agent_id?: string;
+  agents?: {
+    name: string;
+    avatar?: string;
+    avatar_color?: string;
+  };
 };
 
 export type AgentRun = {
@@ -579,7 +585,14 @@ export const getMessages = async (threadId: string): Promise<Message[]> => {
   while (hasMore) {
     const { data, error } = await supabase
       .from('messages')
-      .select('*')
+      .select(`
+        *,
+        agents:agent_id (
+          name,
+          avatar,
+          avatar_color
+        )
+      `)
       .eq('thread_id', threadId)
       .neq('type', 'cost')
       .neq('type', 'summary')
@@ -1591,6 +1604,7 @@ export interface SubscriptionStatus {
   cancel_at_period_end: boolean;
   trial_end?: string; // ISO Date string
   minutes_limit?: number;
+  cost_limit?: number;
   current_usage?: number;
   // Fields for scheduled changes
   has_schedule: boolean;
@@ -1615,12 +1629,38 @@ export interface Model {
   display_name: string;
   short_name?: string;
   requires_subscription?: boolean;
+  is_available?: boolean;
+  input_cost_per_million_tokens?: number | null;
+  output_cost_per_million_tokens?: number | null;
+  max_tokens?: number | null;
 }
 
 export interface AvailableModelsResponse {
   models: Model[];
   subscription_tier: string;
   total_models: number;
+}
+
+export interface UsageLogEntry {
+  message_id: string;
+  thread_id: string;
+  created_at: string;
+  content: {
+    usage: {
+      prompt_tokens: number;
+      completion_tokens: number;
+    };
+    model: string;
+  };
+  total_tokens: number;
+  estimated_cost: number;
+  project_id: string;
+}
+
+export interface UsageLogsResponse {
+  logs: UsageLogEntry[];
+  has_more: boolean;
+  message?: string;
 }
 
 export interface CreateCheckoutSessionResponse {
@@ -1987,7 +2027,7 @@ export const getWorkflows = async (projectId?: string): Promise<Workflow[]> => {
       throw new NoAccessTokenAvailableError();
     }
 
-    let url = `${API_URL}/workflows`;
+    const url = `${API_URL}/workflows`;
     const headers: Record<string, string> = {
       Authorization: `Bearer ${session.access_token}`,
     };
@@ -2503,3 +2543,5 @@ export const cancelExecution = async (executionId: string): Promise<void> => {
     throw error;
   }
 };
+
+
