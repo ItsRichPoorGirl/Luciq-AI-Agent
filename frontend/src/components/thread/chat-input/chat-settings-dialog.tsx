@@ -84,7 +84,7 @@ export function ChatSettingsDialog({
                 selectedModel={selectedModel}
                 onModelChange={onModelChange}
                 modelOptions={modelOptions}
-                subscriptionStatus={subscriptionStatus}
+                subscriptionStatus={subscriptionStatus?.status || 'no_subscription'}
                 canAccessModel={canAccessModel}
                 refreshCustomModels={refreshCustomModels}
                 hasBorder={true}
