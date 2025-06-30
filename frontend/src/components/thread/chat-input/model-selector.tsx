@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import { Check, ChevronDown, Search, AlertTriangle, Crown, ArrowUpRight, Brain, Plus, Edit, Trash } from 'lucide-react';
 import {
   ModelOption,
-  SubscriptionStatus,
   STORAGE_KEY_MODEL,
   STORAGE_KEY_CUSTOM_MODELS,
   DEFAULT_FREE_MODEL_ID,
@@ -44,7 +43,7 @@ interface ModelSelectorProps {
   onModelChange: (modelId: string) => void;
   modelOptions: ModelOption[];
   canAccessModel: (modelId: string) => boolean;
-  subscriptionStatus: SubscriptionStatus;
+  subscriptionStatus: string;
   refreshCustomModels?: () => void;
   billingModalOpen: boolean;
   setBillingModalOpen: (open: boolean) => void;

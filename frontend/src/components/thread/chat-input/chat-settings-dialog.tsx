@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { ModelSelector } from './model-selector';
-import { SubscriptionStatus } from './_use-model-selection';
 import { cn } from '@/lib/utils';
 import { BillingModal } from '@/components/billing/billing-modal';
 
@@ -20,7 +19,7 @@ interface ChatSettingsDialogProps {
   selectedModel: string;
   onModelChange: (model: string) => void;
   modelOptions: any[];
-  subscriptionStatus: SubscriptionStatus;
+  subscriptionStatus: string;
   canAccessModel: (modelId: string) => boolean;
   refreshCustomModels?: () => void;
   disabled?: boolean;

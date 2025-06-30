@@ -226,7 +226,7 @@ const InputNode = memo(({ data, selected, id }: NodeProps) => {
                   onModelChange={handleModelChange}
                   modelOptions={allModels}
                   canAccessModel={canAccessModel}
-                  subscriptionStatus={subscriptionStatus}
+                  subscriptionStatus={subscriptionStatus?.status || 'no_subscription'}
                   refreshCustomModels={refreshCustomModels}
                   billingModalOpen={billingModalOpen}
                   setBillingModalOpen={setBillingModalOpen}
