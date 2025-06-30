@@ -84,11 +84,11 @@ async def lifespan(app: FastAPI):
         
         # Initialize feature flags for Luciq deployment
         try:
-            from flags import flags
+            from flags.flags import enable_flag
             logger.info("Initializing Luciq feature flags...")
-            await flags.enable_flag("custom_agents", "Enable custom agent builder and management functionality")
-            await flags.enable_flag("agent_marketplace", "Enable agent marketplace for discovering and sharing agents")
-            await flags.enable_flag("workflows", "Enable workflow automation functionality")
+            await enable_flag("custom_agents", "Enable custom agent builder and management functionality")
+            await enable_flag("agent_marketplace", "Enable agent marketplace for discovering and sharing agents")
+            await enable_flag("workflows", "Enable workflow automation functionality")
             logger.info("Luciq feature flags initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize feature flags: {e}")
@@ -243,7 +243,11 @@ async def debug_admin_status(current_user_id: str = Depends(get_current_user_id_
     """Debug endpoint to check admin bypass status."""
     try:
         admin_user_ids = config.get_admin_user_ids
-        is_admin = current_user_id in admin_user_ids
+        # Handle special "*" value that enables admin access for all users
+        if "*" in admin_user_ids:
+            is_admin = True
+        else:
+            is_admin = current_user_id in admin_user_ids
         
         return {
             "current_user_id": current_user_id,

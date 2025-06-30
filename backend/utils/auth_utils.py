@@ -1,9 +1,10 @@
 import sentry
 from fastapi import HTTPException, Request
-from typing import Optional
+from typing import Optional, List
 import jwt
 from jwt.exceptions import PyJWTError
 from utils.logger import structlog
+from utils.config import config
 
 # This function extracts the user ID from Supabase JWT
 async def get_current_user_id_from_jwt(request: Request) -> str:
@@ -229,3 +230,22 @@ async def get_optional_user_id(request: Request) -> Optional[str]:
         return user_id
     except PyJWTError:
         return None
+
+def is_admin_user(user_id: str) -> bool:
+    """
+    Check if a user is an admin based on the ADMIN_USER_IDS configuration.
+    
+    Args:
+        user_id: The user ID to check
+        
+    Returns:
+        True if the user is an admin, False otherwise
+    """
+    admin_user_ids = config.get_admin_user_ids
+    
+    # Handle special "*" value that enables admin access for all users
+    if "*" in admin_user_ids:
+        return True
+    
+    # Check if user ID is in the admin list
+    return user_id in admin_user_ids

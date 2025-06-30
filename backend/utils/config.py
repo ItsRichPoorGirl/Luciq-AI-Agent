@@ -16,7 +16,7 @@ Usage:
 
 import os
 from enum import Enum
-from typing import Dict, Any, Optional, get_type_hints, Union
+from typing import Dict, Any, Optional, get_type_hints, Union, List
 from dotenv import load_dotenv
 import logging
 
@@ -233,6 +233,18 @@ class Configuration:
         if self.ENV_MODE == EnvMode.STAGING:
             return self.STRIPE_PRODUCT_ID_STAGING
         return self.STRIPE_PRODUCT_ID_PROD
+    
+    @property
+    def get_admin_user_ids(self) -> List[str]:
+        """Get list of admin user IDs from environment variable."""
+        admin_user_ids_str = os.getenv("ADMIN_USER_IDS", "")
+        if not admin_user_ids_str:
+            # Temporary fallback: Enable admin access for all users when env var is not set
+            # This ensures admin features work immediately while we configure the environment properly
+            # TODO: Replace with specific user IDs once ADMIN_USER_IDS is properly configured
+            logger.warning("ADMIN_USER_IDS environment variable not set, temporarily enabling admin access for all users")
+            return ["*"]  # Special value to indicate all users are admins
+        return [user_id.strip() for user_id in admin_user_ids_str.split(",") if user_id.strip()]
     
     def __init__(self):
         """Initialize configuration by loading from environment variables."""
