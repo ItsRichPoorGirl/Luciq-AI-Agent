@@ -286,6 +286,12 @@ export function NavUserWithTeams({
                     Billing
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings/usage-logs">
+                    <AudioWaveform className="h-4 w-4" />
+                    Usage Logs
+                  </Link>
+                </DropdownMenuItem>
                 {/* <DropdownMenuItem asChild>
                   <Link href="/settings">
                     <Settings className="mr-2 h-4 w-4" />

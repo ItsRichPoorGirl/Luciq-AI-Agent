@@ -1,0 +1,19 @@
+# fly.toml app configuration file for RabbitMQ in SJC region
+app = "luciq-rabbitmq-sjc"
+primary_region = "sjc"
+
+[build]
+image = "rabbitmq:latest"
+
+[services]
+  internal_port = 5672
+  protocol = "tcp"
+  
+  [[services.ports]]
+    port = 5672
+    handlers = ["tls", "http"]
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1 
