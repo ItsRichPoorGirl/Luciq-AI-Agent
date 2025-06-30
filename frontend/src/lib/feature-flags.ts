@@ -47,6 +47,11 @@ export class FeatureFlagManager {
       });
       if (!response.ok) {
         console.warn(`Failed to fetch feature flag ${flagName}: ${response.status}`);
+        // Fallback: Enable key features by default if API is not available
+        if (['custom_agents', 'agent_marketplace', 'workflows'].includes(flagName)) {
+          console.log(`Enabling ${flagName} by default due to API unavailability`);
+          return true;
+        }
         return false;
       }
       
@@ -60,6 +65,11 @@ export class FeatureFlagManager {
       return data.enabled;
     } catch (error) {
       console.error(`Error checking feature flag ${flagName}:`, error);
+      // Fallback: Enable key features by default if there's an error
+      if (['custom_agents', 'agent_marketplace', 'workflows'].includes(flagName)) {
+        console.log(`Enabling ${flagName} by default due to error`);
+        return true;
+      }
       return false;
     }
   }
@@ -101,7 +111,14 @@ export class FeatureFlagManager {
       
       if (!response.ok) {
         console.warn(`Failed to fetch all feature flags: ${response.status}`);
-        return {};
+        // Fallback: Enable key features by default if API is not available
+        const fallbackFlags = {
+          custom_agents: true,
+          agent_marketplace: true,
+          workflows: true
+        };
+        console.log('Using fallback feature flags due to API unavailability');
+        return fallbackFlags;
       }
       
       const data: FeatureFlagsResponse = await response.json();
@@ -120,7 +137,14 @@ export class FeatureFlagManager {
       return data.flags;
     } catch (error) {
       console.error('Error fetching all feature flags:', error);
-      return {};
+      // Fallback: Enable key features by default if there's an error
+      const fallbackFlags = {
+        custom_agents: true,
+        agent_marketplace: true,
+        workflows: true
+      };
+      console.log('Using fallback feature flags due to error');
+      return fallbackFlags;
     }
   }
 
