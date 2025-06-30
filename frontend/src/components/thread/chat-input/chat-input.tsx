@@ -285,7 +285,7 @@ export const ChatInput = forwardRef<ChatInputHandles, ChatInputProps>(
                 selectedModel={selectedModel}
                 onModelChange={handleModelChange}
                 modelOptions={modelOptions}
-                subscriptionStatus={subscriptionStatus}
+                subscriptionStatus={subscriptionStatus?.status || 'no_subscription'}
                 canAccessModel={canAccessModel}
                 refreshCustomModels={refreshCustomModels}
 

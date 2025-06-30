@@ -137,9 +137,7 @@ export default function ThreadPage({
   }, [threadAgentData, selectedAgentId]);
 
   const { data: subscriptionData } = useSubscription();
-  const subscriptionStatus: SubscriptionStatus = subscriptionData?.status === 'active'
-    ? 'active'
-    : 'no_subscription';
+  const subscriptionStatus: string = subscriptionData?.status || 'no_subscription';
 
   // Memoize project for VNC preloader to prevent re-preloading on every render
   const memoizedProject = useMemo(() => project, [project?.id, project?.sandbox?.vnc_preview, project?.sandbox?.pass]);

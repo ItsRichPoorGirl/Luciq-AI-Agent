@@ -6,6 +6,9 @@ import { isLocalMode } from '@/lib/config';
 import { useAvailableModels } from '@/hooks/react-query/subscriptions/use-model';
 import type { SubscriptionStatus } from '@/lib/api';
 
+// Re-export SubscriptionStatus for other files to import
+export type { SubscriptionStatus } from '@/lib/api';
+
 export const STORAGE_KEY_MODEL = 'suna-preferred-model';
 export const STORAGE_KEY_CUSTOM_MODELS = 'customModels';
 export const DEFAULT_FREE_MODEL_ID = 'deepseek';

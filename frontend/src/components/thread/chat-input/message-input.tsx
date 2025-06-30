@@ -41,7 +41,7 @@ interface MessageInputProps {
   selectedModel: string;
   onModelChange: (model: string) => void;
   modelOptions: any[];
-  subscriptionStatus: SubscriptionStatus;
+  subscriptionStatus: string;
   canAccessModel: (modelId: string) => boolean;
   refreshCustomModels?: () => void;
   selectedAgentId?: string;
