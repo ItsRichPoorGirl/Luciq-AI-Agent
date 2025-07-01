@@ -38,7 +38,7 @@ class FeatureFlagManager:
             return False
     
     async def is_enabled(self, key: str, user_id: str = None) -> bool:
-        """Check if a feature flag is enabled, with admin bypass"""
+        """Check if a feature flag is enabled, with admin bypass and Luciq defaults"""
         try:
             # Admin bypass: If user is admin, always return True for key features
             if user_id and is_admin_user(user_id):
@@ -47,13 +47,20 @@ class FeatureFlagManager:
                     logger.debug(f"Admin bypass applied for user {user_id} on feature {key}")
                     return True
             
+            # Luciq default: Enable key features by default for all users
+            luciq_default_features = ['custom_agents', 'agent_marketplace', 'workflows', 'mcp']
+            if key in luciq_default_features:
+                logger.debug(f"Luciq default enabled for feature {key}")
+                return True
+            
+            # Check Redis for other features
             flag_key = f"{self.flag_prefix}{key}"
             redis_client = await redis.get_client()
             enabled = await redis_client.hget(flag_key, 'enabled')
             return enabled == 'true' if enabled else False
         except Exception as e:
             logger.error(f"Failed to check feature flag {key}: {e}")
-            # Return False by default if Redis is unavailable
+            # Return False by default if Redis is unavailable (for non-key features)
             return False
     
     async def get_flag(self, key: str) -> Optional[Dict[str, str]]:
