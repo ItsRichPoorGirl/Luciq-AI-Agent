@@ -14,6 +14,8 @@ from services.supabase import DBConnection
 from utils.auth_utils import get_current_user_id_from_jwt
 from pydantic import BaseModel
 from utils.constants import MODEL_ACCESS_TIERS, MODEL_NAME_ALIASES
+import os
+
 # Initialize Stripe
 stripe.api_key = config.STRIPE_SECRET_KEY
 
@@ -37,6 +39,7 @@ class CreateCheckoutSessionRequest(BaseModel):
     price_id: str
     success_url: str
     cancel_url: str
+    tolt_referral: Optional[str] = None
 
 class CreatePortalSessionRequest(BaseModel):
     return_url: str
@@ -191,9 +194,14 @@ async def calculate_monthly_usage(client, user_id: str) -> float:
         start_time = datetime.fromisoformat(run['started_at'].replace('Z', '+00:00')).timestamp()
         if run['completed_at']:
             end_time = datetime.fromisoformat(run['completed_at'].replace('Z', '+00:00')).timestamp()
+            if start_time < end_time - 7200:
+                continue
         else:
-            # For running jobs, use current time
-            end_time = now_ts
+            # if the start time is more than an hour ago, don't consider that time in total. else use the current time
+            if start_time < now_ts - 3600:
+                continue
+            else:
+                end_time = now_ts
         
         total_seconds += (end_time - start_time)
     
@@ -234,6 +242,15 @@ async def can_use_model(client, user_id: str, model_name: str):
             "plan_name": "Local Development",
             "minutes_limit": "no limit"
         }
+    
+    # Admin bypass - check if user is admin
+    try:
+        admin_user_ids = config.get_admin_user_ids
+        if user_id in admin_user_ids:
+            logger.info(f"Admin model access bypass activated for user ID: {user_id}")
+            return True, "Admin access - all models allowed", ["admin_unlimited"]
+    except Exception as e:
+        logger.warning(f"Error checking admin status for user {user_id}: {str(e)}")
         
     allowed_models = await get_allowed_models_for_user(client, user_id)
     resolved_model = MODEL_NAME_ALIASES.get(model_name, model_name)
@@ -326,7 +343,7 @@ async def create_checkout_session(
         # Get or create Stripe customer
         customer_id = await get_stripe_customer_id(client, current_user_id)
         if not customer_id: customer_id = await create_stripe_customer(client, current_user_id, email)
-        
+         
         # Get the target price and product ID
         try:
             price = stripe.Price.retrieve(request.price_id, expand=['product'])
@@ -558,7 +575,7 @@ async def create_checkout_session(
                 logger.exception(f"Error updating subscription {existing_subscription.get('id') if existing_subscription else 'N/A'}: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Error updating subscription: {str(e)}")
         else:
-            # --- Create New Subscription via Checkout Session ---
+            
             session = stripe.checkout.Session.create(
                 customer=customer_id,
                 payment_method_types=['card'],
@@ -568,7 +585,8 @@ async def create_checkout_session(
                 cancel_url=request.cancel_url,
                 metadata={
                         'user_id': current_user_id,
-                        'product_id': product_id
+                        'product_id': product_id,
+                        'tolt_referral': request.tolt_referral
                 },
                 allow_promotion_codes=True
             )
@@ -698,6 +716,24 @@ async def get_subscription(
 ):
     """Get the current subscription status for the current user, including scheduled changes."""
     try:
+        # Admin bypass - check if user is admin
+        admin_user_ids = config.get_admin_user_ids
+        if current_user_id in admin_user_ids:
+            logger.info(f"Admin subscription bypass activated for user ID: {current_user_id}")
+            return SubscriptionStatus(
+                status="admin_unlimited",
+                plan_name="Admin Unlimited",
+                price_id=None,
+                current_period_end=None,
+                cancel_at_period_end=False,
+                trial_end=None,
+                minutes_limit=None,
+                current_usage=None,
+                has_schedule=False,
+                scheduled_plan_name=None,
+                scheduled_price_id=None,
+                scheduled_change_date=None
+            )
         # Get subscription from Stripe (this helper already handles filtering/cleanup)
         subscription = await get_user_subscription(current_user_id)
         # print("Subscription data for status:", subscription)
@@ -911,6 +947,46 @@ async def get_available_models(
                 "subscription_tier": "Local Development",
                 "total_models": len(model_info)
             }
+        
+        # Admin bypass - check if user is admin
+        try:
+            admin_user_ids = config.get_admin_user_ids
+            logger.info(f"DEBUG: admin_user_ids={admin_user_ids}, user_id={current_user_id}")
+            if current_user_id in admin_user_ids:
+                logger.info(f"Admin model access bypass activated for user ID: {current_user_id}")
+                
+                # Return ALL models from the system with proper structure
+                all_models = set()
+                model_aliases = {}
+                
+                for short_name, full_name in MODEL_NAME_ALIASES.items():
+                    all_models.add(full_name)
+                    if short_name != full_name and not short_name.startswith("openai/") and not short_name.startswith("anthropic/") and not short_name.startswith("openrouter/") and not short_name.startswith("xai/"):
+                        if full_name not in model_aliases:
+                            model_aliases[full_name] = short_name
+                
+                # Create model info for admin with ALL models available
+                admin_model_info = []
+                for model in all_models:
+                    display_name = model_aliases.get(model, model.split('/')[-1] if '/' in model else model)
+                    
+                    admin_model_info.append({
+                        "id": model,
+                        "display_name": display_name,
+                        "short_name": model_aliases.get(model),
+                        "requires_subscription": False,  # Admin gets everything for free
+                        "is_available": True  # Admin gets access to everything
+                    })
+                
+                return {
+                    "models": admin_model_info,
+                    "subscription_tier": "Admin Unlimited",
+                    "total_models": len(admin_model_info)
+                }
+            else:
+                logger.info(f"DEBUG: User {current_user_id} not in admin list {admin_user_ids}")
+        except Exception as e:
+            logger.warning(f"Error checking admin status for model access for user {current_user_id}: {str(e)}")
         
         # For non-local mode, get list of allowed models for this user
         allowed_models = await get_allowed_models_for_user(client, current_user_id)
