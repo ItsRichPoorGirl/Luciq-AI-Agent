@@ -376,7 +376,7 @@ async def get_usage_logs(client, user_id: str, page: int = 0, items_per_page: in
             })
         except Exception as e:
             logger.warning(f"Error processing usage log entry for message {message.get('message_id', 'unknown')}: {str(e)}")
-                continue
+            continue
     
     # Check if there are more results
     has_more = len(processed_logs) == items_per_page
@@ -437,7 +437,7 @@ def calculate_token_cost(prompt_tokens: int, completion_tokens: int, model: str,
                             break
                     except Exception as e:
                         logger.debug(f"Failed to get pricing for model variation {model_name}: {str(e)}")
-                continue
+                        continue
                 
                 if message_cost is None:
                     logger.warning(f"Could not get pricing for model {model} (resolved: {resolved_model}), returning 0 cost")
