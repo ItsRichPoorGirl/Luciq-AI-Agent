@@ -7,18 +7,24 @@ router = APIRouter()
 
 
 @router.get("/feature-flags")
-async def get_feature_flags(current_user_id: str = Depends(get_current_user_id_from_jwt)):
+async def get_feature_flags():
+    """Get all feature flags - public endpoint for app initialization"""
     try:
-        flags = await list_flags(current_user_id)
+        # For public endpoint, we don't have user_id, so we use None
+        # This will trigger Luciq defaults for key features
+        flags = await list_flags(None)
         return {"flags": flags}
     except Exception as e:
         logger.error(f"Error fetching feature flags: {str(e)}")
         return {"flags": {}}
 
 @router.get("/feature-flags/{flag_name}")
-async def get_feature_flag(flag_name: str, current_user_id: str = Depends(get_current_user_id_from_jwt)):
+async def get_feature_flag(flag_name: str):
+    """Get a specific feature flag - public endpoint for app initialization"""
     try:
-        enabled = await is_enabled(flag_name, current_user_id)
+        # For public endpoint, we don't have user_id, so we use None
+        # This will trigger Luciq defaults for key features
+        enabled = await is_enabled(flag_name, None)
         details = await get_flag_details(flag_name)
         return {
             "flag_name": flag_name,
