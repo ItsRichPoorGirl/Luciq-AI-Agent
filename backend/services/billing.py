@@ -287,12 +287,12 @@ async def get_usage_logs(client, user_id: str, page: int = 0, items_per_page: in
     
     while True:
         threads_batch = await client.table('threads') \
-            .select('thread_id') \
-            .eq('account_id', user_id) \
+        .select('thread_id') \
+        .eq('account_id', user_id) \
             .gte('created_at', start_of_month.isoformat()) \
             .range(offset, offset + batch_size - 1) \
-            .execute()
-        
+        .execute()
+    
         if not threads_batch.data:
             break
             
@@ -350,7 +350,8 @@ async def get_usage_logs(client, user_id: str, page: int = 0, items_per_page: in
             estimated_cost = calculate_token_cost(
                 prompt_tokens,
                 completion_tokens,
-                model
+                model,
+                user_id
             )
             
             # Safely extract project_id from threads relationship
@@ -386,7 +387,7 @@ async def get_usage_logs(client, user_id: str, page: int = 0, items_per_page: in
     }
 
 
-def calculate_token_cost(prompt_tokens: int, completion_tokens: int, model: str) -> float:
+def calculate_token_cost(prompt_tokens: int, completion_tokens: int, model: str, user_id: str = None) -> float:
     """Calculate the cost for tokens using the same logic as the monthly usage calculation."""
     try:
         # Ensure tokens are valid integers
@@ -436,7 +437,6 @@ def calculate_token_cost(prompt_tokens: int, completion_tokens: int, model: str)
                             break
                     except Exception as e:
                         logger.debug(f"Failed to get pricing for model variation {model_name}: {str(e)}")
-                        continue
                 
                 if message_cost is None:
                     logger.warning(f"Could not get pricing for model {model} (resolved: {resolved_model}), returning 0 cost")
@@ -446,7 +446,14 @@ def calculate_token_cost(prompt_tokens: int, completion_tokens: int, model: str)
                 logger.warning(f"Could not get pricing for model {model} (resolved: {resolved_model}): {str(e)}, returning 0 cost")
                 return 0.0
         
-        # Apply the TOKEN_PRICE_MULTIPLIER
+        # Apply admin bypass if user is admin
+        if user_id:
+            from utils.auth_utils import is_admin_user
+            if is_admin_user(user_id):
+                logger.info(f"Admin bypass applied for user {user_id} - skipping TOKEN_PRICE_MULTIPLIER")
+                return message_cost  # Return cost without multiplier for admin users
+        
+        # Apply the TOKEN_PRICE_MULTIPLIER for non-admin users
         return message_cost * TOKEN_PRICE_MULTIPLIER
     except Exception as e:
         logger.error(f"Error calculating token cost for model {model}: {str(e)}")
@@ -487,6 +494,12 @@ async def can_use_model(client, user_id: str, model_name: str):
             "plan_name": "Local Development",
             "minutes_limit": "no limit"
         }
+    
+    # Check for admin bypass first
+    from utils.auth_utils import is_admin_user
+    if is_admin_user(user_id):
+        logger.info(f"Admin bypass applied for user {user_id} - allowing access to all models")
+        return True, "Admin access - all models allowed", ["all_models"]
         
     allowed_models = await get_allowed_models_for_user(client, user_id)
     resolved_model = MODEL_NAME_ALIASES.get(model_name, model_name)
@@ -507,6 +520,16 @@ async def check_billing_status(client, user_id: str) -> Tuple[bool, str, Optiona
         return True, "Local development mode - billing disabled", {
             "price_id": "local_dev",
             "plan_name": "Local Development",
+            "minutes_limit": "no limit"
+        }
+    
+    # Check for admin bypass first
+    from utils.auth_utils import is_admin_user
+    if is_admin_user(user_id):
+        logger.info(f"Admin bypass applied for user {user_id} - bypassing billing limits")
+        return True, "Admin access - billing limits bypassed", {
+            "price_id": "admin",
+            "plan_name": "Admin",
             "minutes_limit": "no limit"
         }
     
@@ -944,7 +967,7 @@ async def get_subscription(
         db = DBConnection()
         client = await db.client
         current_usage = await calculate_monthly_usage(client, current_user_id)
-
+        
         if not subscription:
             # Default to free tier status if no active subscription for our product
             free_tier_id = config.STRIPE_FREE_TIER_ID
@@ -1275,7 +1298,7 @@ async def get_available_models(
                         "output_cost_per_million_tokens": None,
                         "max_tokens": None
                     }
-
+            
             model_info.append({
                 "id": model,
                 "display_name": display_name,
