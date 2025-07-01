@@ -1,23 +1,24 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from utils.logger import logger
+from utils.auth_utils import get_current_user_id_from_jwt
 from .flags import list_flags, is_enabled, get_flag_details, enable_flag, disable_flag
 
 router = APIRouter()
 
 
 @router.get("/feature-flags")
-async def get_feature_flags():
+async def get_feature_flags(current_user_id: str = Depends(get_current_user_id_from_jwt)):
     try:
-        flags = await list_flags()
+        flags = await list_flags(current_user_id)
         return {"flags": flags}
     except Exception as e:
         logger.error(f"Error fetching feature flags: {str(e)}")
         return {"flags": {}}
 
 @router.get("/feature-flags/{flag_name}")
-async def get_feature_flag(flag_name: str):
+async def get_feature_flag(flag_name: str, current_user_id: str = Depends(get_current_user_id_from_jwt)):
     try:
-        enabled = await is_enabled(flag_name)
+        enabled = await is_enabled(flag_name, current_user_id)
         details = await get_flag_details(flag_name)
         return {
             "flag_name": flag_name,

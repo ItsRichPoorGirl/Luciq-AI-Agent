@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import Dict, List, Optional
 import sys
 from services import redis
+from utils.auth_utils import is_admin_user
+from utils.logger import logger
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +37,16 @@ class FeatureFlagManager:
             logger.error(f"Failed to set feature flag {key}: {e}")
             return False
     
-    async def is_enabled(self, key: str) -> bool:
-        """Check if a feature flag is enabled"""
+    async def is_enabled(self, key: str, user_id: str = None) -> bool:
+        """Check if a feature flag is enabled, with admin bypass"""
         try:
+            # Admin bypass: If user is admin, always return True for key features
+            if user_id and is_admin_user(user_id):
+                key_features = ['custom_agents', 'agent_marketplace', 'workflows', 'mcp']
+                if key in key_features:
+                    logger.debug(f"Admin bypass applied for user {user_id} on feature {key}")
+                    return True
+            
             flag_key = f"{self.flag_prefix}{key}"
             redis_client = await redis.get_client()
             enabled = await redis_client.hget(flag_key, 'enabled')
@@ -73,7 +82,7 @@ class FeatureFlagManager:
             logger.error(f"Failed to delete feature flag {key}: {e}")
             return False
     
-    async def list_flags(self) -> Dict[str, bool]:
+    async def list_flags(self, user_id: str = None) -> Dict[str, bool]:
         """List all feature flags with their status"""
         try:
             redis_client = await redis.get_client()
@@ -81,7 +90,7 @@ class FeatureFlagManager:
             flags = {}
             
             for key in flag_keys:
-                flags[key] = await self.is_enabled(key)
+                flags[key] = await self.is_enabled(key, user_id)
             
             return flags
         except Exception as e:
@@ -122,8 +131,8 @@ async def set_flag(key: str, enabled: bool, description: str = "") -> bool:
     return await get_flag_manager().set_flag(key, enabled, description)
 
 
-async def is_enabled(key: str) -> bool:
-    return await get_flag_manager().is_enabled(key)
+async def is_enabled(key: str, user_id: str = None) -> bool:
+    return await get_flag_manager().is_enabled(key, user_id)
 
 
 async def enable_flag(key: str, description: str = "") -> bool:
@@ -138,8 +147,20 @@ async def delete_flag(key: str) -> bool:
     return await get_flag_manager().delete_flag(key)
 
 
-async def list_flags() -> Dict[str, bool]:
-    return await get_flag_manager().list_flags()
+async def list_flags(user_id: str = None) -> Dict[str, bool]:
+    flag_manager = get_flag_manager()
+    try:
+        redis_client = await redis.get_client()
+        flag_keys = await redis_client.smembers(flag_manager.flag_list_key)
+        flags = {}
+        
+        for key in flag_keys:
+            flags[key] = await flag_manager.is_enabled(key, user_id)
+        
+        return flags
+    except Exception as e:
+        logger.error(f"Failed to list feature flags: {e}")
+        return {}
 
 
 async def get_flag_details(key: str) -> Optional[Dict[str, str]]:
