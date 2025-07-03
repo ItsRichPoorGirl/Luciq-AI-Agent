@@ -232,6 +232,7 @@ export const useModelSelection = () => {
   });
   
   const subscriptionStatus = subscriptionData;
+  console.log("DEBUG subscriptionStatus", subscriptionStatus);
 
   // Function to refresh custom models from localStorage
   const refreshCustomModels = () => {
