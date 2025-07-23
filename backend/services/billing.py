@@ -248,7 +248,9 @@ async def can_use_model(client, user_id: str, model_name: str):
         admin_user_ids = config.get_admin_user_ids
         if user_id in admin_user_ids:
             logger.info(f"Admin model access bypass activated for user ID: {user_id}")
-            return True, "Admin access - all models allowed", ["admin_unlimited"]
+            # Return all available models for admin users
+            all_models = list(MODEL_NAME_ALIASES.keys()) + list(MODEL_NAME_ALIASES.values())
+            return True, "Admin access - all models allowed", list(set(all_models))
     except Exception as e:
         logger.warning(f"Error checking admin status for user {user_id}: {str(e)}")
         
