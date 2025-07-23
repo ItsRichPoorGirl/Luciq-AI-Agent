@@ -720,6 +720,8 @@ async def get_subscription(
     try:
         # Admin bypass - check if user is admin
         admin_user_ids = config.get_admin_user_ids
+        logger.info(f"DEBUG get_subscription: admin_user_ids={admin_user_ids}, user_id={current_user_id}")
+        logger.info(f"DEBUG get_subscription: ADMIN_USER_IDS env var = {os.getenv('ADMIN_USER_IDS', 'NOT_SET')}")
         if current_user_id in admin_user_ids:
             logger.info(f"Admin subscription bypass activated for user ID: {current_user_id}")
             return SubscriptionStatus(
@@ -953,7 +955,8 @@ async def get_available_models(
         # Admin bypass - check if user is admin
         try:
             admin_user_ids = config.get_admin_user_ids
-            logger.info(f"DEBUG: admin_user_ids={admin_user_ids}, user_id={current_user_id}")
+            logger.info(f"DEBUG get_available_models: admin_user_ids={admin_user_ids}, user_id={current_user_id}")
+            logger.info(f"DEBUG get_available_models: ADMIN_USER_IDS env var = {os.getenv('ADMIN_USER_IDS', 'NOT_SET')}")
             if current_user_id in admin_user_ids:
                 logger.info(f"Admin model access bypass activated for user ID: {current_user_id}")
                 
