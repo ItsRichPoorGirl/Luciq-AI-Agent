@@ -469,7 +469,6 @@ export const useModelSelection = () => {
     canAccessModel: (modelId: string) => {
       if (isLocalMode()) return true;
       const model = MODEL_OPTIONS.find(m => m.id === modelId);
-      console.log(`DEBUG canAccessModel: modelId=${modelId}, found model:`, model, `requiresSubscription=${model?.requiresSubscription}, subscriptionStatus=${subscriptionStatus?.status}`);
       return model ? canAccessModel(subscriptionStatus, model.requiresSubscription) : false;
     },
     isSubscriptionRequired: (modelId: string) => {
