@@ -289,7 +289,10 @@ export const useModelSelection = () => {
         
         // Get model data from our central MODELS constant
         const modelData = MODELS[shortName] || {};
-        const isPremium = model?.requires_subscription || modelData.tier === 'premium' || false;
+        // For admin users, only use API response. For others, use API response OR static tier data
+        const isPremium = subscriptionStatus?.status === 'admin_unlimited' 
+          ? (model?.requires_subscription || false)
+          : (model?.requires_subscription || modelData.tier === 'premium' || false);
         
         return {
           id: shortName,
