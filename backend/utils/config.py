@@ -221,7 +221,7 @@ class Configuration:
     STRIPE_PRODUCT_ID_PROD: str = 'prod_SCl7AQ2C8kK1CD'
     STRIPE_PRODUCT_ID_STAGING: str = 'prod_SCgIj3G7yPOAWY'
     
-    # Sandbox configuration
+    # Sandbox configuration - Using our own Daytona snapshot
     SANDBOX_IMAGE_NAME = "kortix/suna:0.1.3"
     SANDBOX_SNAPSHOT_NAME = "kortix/suna:0.1.3"
     SANDBOX_ENTRYPOINT = "/usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf"

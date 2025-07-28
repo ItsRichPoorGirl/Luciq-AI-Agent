@@ -205,3 +205,13 @@ dump.rdb
 
 # CodeWebChat state and logs (auto-added)
 .cwc/
+
+# Development and deployment notes (sensitive)
+CLAUDE.md
+SESSION-MEMORY.md
+.claude/
+.cursorrules
+deployment-notes.md
+dev-scripts/
+env-comparison.md
+backend/fix_messages_schema.sql
