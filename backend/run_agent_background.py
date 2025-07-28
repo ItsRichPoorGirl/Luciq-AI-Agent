@@ -16,17 +16,33 @@ from agentpress.thread_manager import ThreadManager
 from services.supabase import DBConnection
 from services import redis
 from dramatiq.brokers.rabbitmq import RabbitmqBroker
+from dramatiq.brokers.redis import RedisBroker
 import os
 from services.langfuse import langfuse
 from utils.retry import retry
+from utils.config import config
 
 import sentry_sdk
 from typing import Dict, Any
 
-rabbitmq_host = os.getenv('RABBITMQ_HOST', 'rabbitmq')
-rabbitmq_port = int(os.getenv('RABBITMQ_PORT', 5672))
-rabbitmq_broker = RabbitmqBroker(host=rabbitmq_host, port=rabbitmq_port, middleware=[dramatiq.middleware.AsyncIO()])
-dramatiq.set_broker(rabbitmq_broker)
+# Configure broker based on environment
+rabbitmq_host = os.getenv('RABBITMQ_HOST')
+redis_host = config.REDIS_HOST
+
+if rabbitmq_host:
+    # Use RabbitMQ broker (local development)
+    rabbitmq_port = int(os.getenv('RABBITMQ_PORT', 5672))
+    broker = RabbitmqBroker(host=rabbitmq_host, port=rabbitmq_port, middleware=[dramatiq.middleware.AsyncIO()])
+    logger.info(f"Using RabbitMQ broker at {rabbitmq_host}:{rabbitmq_port}")
+else:
+    # Use Redis broker (production)
+    redis_url = f"redis://:{config.REDIS_PASSWORD}@{config.REDIS_HOST}:{config.REDIS_PORT}"
+    if config.REDIS_SSL:
+        redis_url = f"rediss://:{config.REDIS_PASSWORD}@{config.REDIS_HOST}:{config.REDIS_PORT}"
+    broker = RedisBroker(url=redis_url, middleware=[dramatiq.middleware.AsyncIO()])
+    logger.info(f"Using Redis broker at {config.REDIS_HOST}:{config.REDIS_PORT} (SSL: {config.REDIS_SSL})")
+
+dramatiq.set_broker(broker)
 
 
 _initialized = False
