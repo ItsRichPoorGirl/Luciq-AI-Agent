@@ -137,7 +137,7 @@ async def log_requests_middleware(request: Request, call_next):
 
 # Define allowed origins based on environment
 allowed_origins = []
-allow_origin_regex = r"https://luciq-.*-itsrichpoorgirls-projects\.vercel\.app"
+allow_origin_regex = r"https://.*-luciq-ai\.vercel\.app"
 
 # Add local development origins
 if config.ENV_MODE == EnvMode.LOCAL:
@@ -146,7 +146,7 @@ if config.ENV_MODE == EnvMode.LOCAL:
 # Add staging-specific origins
 if config.ENV_MODE == EnvMode.STAGING:
     allowed_origins.append("http://localhost:3000")
-    allow_origin_regex = r"https://luciq-.*-itsrichpoorgirls-projects\.vercel\.app"
+    allow_origin_regex = r"https://.*-luciq-ai\.vercel\.app"
 
 app.add_middleware(
     CORSMiddleware,
