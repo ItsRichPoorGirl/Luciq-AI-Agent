@@ -15,7 +15,7 @@ export function useVncPreloader(project: Project | null) {
     }
 
     isRetryingRef.current = true;
-    console.log(`[VNC PRELOADER] Attempt ${maxRetriesRef.current + 1}/10 - Starting VNC preload:`, vncUrl);
+    console.log(`[VNC PRELOADER] Attempt ${maxRetriesRef.current + 1}/5 - Starting VNC preload:`, vncUrl);
 
     // Create hidden iframe for preloading
     const iframe = document.createElement('iframe');
@@ -38,13 +38,13 @@ export function useVncPreloader(project: Project | null) {
       }
       
       // Retry if we haven't exceeded max retries
-      if (maxRetriesRef.current < 10) {
+      if (maxRetriesRef.current < 5) {
         maxRetriesRef.current++;
         isRetryingRef.current = false;
         
         // Exponential backoff: 2s, 3s, 4.5s, 6.75s, etc. (max 15s)
         const delay = Math.min(2000 * Math.pow(1.5, maxRetriesRef.current - 1), 15000);
-        console.log(`[VNC PRELOADER] Retrying in ${delay}ms (attempt ${maxRetriesRef.current + 1}/10)`);
+        console.log(`[VNC PRELOADER] Retrying in ${delay}ms (attempt ${maxRetriesRef.current + 1}/5)`);
         
         retryTimeoutRef.current = setTimeout(() => {
           startPreloading(vncUrl);
@@ -53,7 +53,7 @@ export function useVncPreloader(project: Project | null) {
         console.log('[VNC PRELOADER] Max retries reached, giving up on preloading');
         isRetryingRef.current = false;
       }
-    }, 5000); // 5 second timeout
+    }, 30000); // 30 second timeout - VNC services need ~25s to start
 
     // Handle successful iframe load
     iframe.onload = () => {
@@ -75,12 +75,12 @@ export function useVncPreloader(project: Project | null) {
       }
       
       // Retry if we haven't exceeded max retries
-      if (maxRetriesRef.current < 10) {
+      if (maxRetriesRef.current < 5) {
         maxRetriesRef.current++;
         isRetryingRef.current = false;
         
         const delay = Math.min(2000 * Math.pow(1.5, maxRetriesRef.current - 1), 15000);
-        console.log(`[VNC PRELOADER] Retrying in ${delay}ms (attempt ${maxRetriesRef.current + 1}/10)`);
+        console.log(`[VNC PRELOADER] Retrying in ${delay}ms (attempt ${maxRetriesRef.current + 1}/5)`);
         
         retryTimeoutRef.current = setTimeout(() => {
           startPreloading(vncUrl);
@@ -111,7 +111,7 @@ export function useVncPreloader(project: Project | null) {
     // Start the preloading process with a small delay to let the sandbox initialize
     const initialDelay = setTimeout(() => {
       startPreloading(vncUrl);
-    }, 1000); // 1 second initial delay
+    }, 30000); // 30 second initial delay - wait for backend VNC initialization
 
     // Cleanup function
     return () => {
