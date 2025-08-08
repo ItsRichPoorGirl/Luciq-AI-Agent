@@ -1,10 +1,8 @@
-import React, { useRef, useState, useCallback } from 'react';
-import { ArrowDown, CircleDashed, CheckCircle, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Markdown } from '@/components/ui/markdown';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { CircleDashed, CheckCircle, AlertTriangle } from 'lucide-react';
 import { UnifiedMessage, ParsedContent, ParsedMetadata } from '@/components/thread/types';
 import { FileAttachmentGrid } from '@/components/thread/file-attachment';
-import { useFilePreloader, FileCache } from '@/hooks/react-query/files';
+import { useFilePreloader } from '@/hooks/react-query/files';
 import { useAuth } from '@/components/AuthProvider';
 import { Project } from '@/lib/api';
 import {
@@ -13,14 +11,11 @@ import {
     getUserFriendlyToolName,
     safeJsonParse,
 } from '@/components/thread/utils';
-import { formatMCPToolDisplayName } from '@/components/thread/tool-views/mcp-tool/_utils';
 import { KortixLogo } from '@/components/sidebar/kortix-logo';
 import { AgentLoader } from './loader';
-import { parseXmlToolCalls, isNewXmlFormat, extractToolNameFromStream } from '@/components/thread/tool-views/xml-parser';
-import { parseToolResult } from '@/components/thread/tool-views/tool-result-parser';
+import { parseXmlToolCalls, isNewXmlFormat } from '@/components/thread/tool-views/xml-parser';
 import { ShowToolStream } from './ShowToolStream';
-import { PipedreamConnectButton } from './pipedream-connect-button';
-import { PipedreamUrlDetector } from './pipedream-url-detector';
+import { ComposioUrlDetector } from './composio-url-detector';
 
 const HIDE_STREAMING_XML_TAGS = new Set([
     'execute-command',
@@ -49,8 +44,6 @@ const HIDE_STREAMING_XML_TAGS = new Set([
     'crawl-webpage',
     'web-search',
     'see-image',
-    'call-mcp-tool',
-
     'execute_data_provider_call',
     'execute_data_provider_endpoint',
 
@@ -58,31 +51,16 @@ const HIDE_STREAMING_XML_TAGS = new Set([
     'execute-data-provider-endpoint',
 ]);
 
-function getEnhancedToolDisplayName(toolName: string, rawXml?: string): string {
-    if (toolName === 'call-mcp-tool' && rawXml) {
-        const toolNameMatch = rawXml.match(/tool_name="([^"]+)"/);
-        if (toolNameMatch) {
-            const fullToolName = toolNameMatch[1];
-            const parts = fullToolName.split('_');
-            if (parts.length >= 3 && fullToolName.startsWith('mcp_')) {
-                const serverName = parts[1];
-                const toolNamePart = parts.slice(2).join('_');
-                return formatMCPToolDisplayName(serverName, toolNamePart);
-            }
-        }
-    }
-    return getUserFriendlyToolName(toolName);
-}
-
 // Helper function to render attachments (keeping original implementation for now)
 export function renderAttachments(attachments: string[], fileViewerHandler?: (filePath?: string, filePathList?: string[]) => void, sandboxId?: string, project?: Project) {
     if (!attachments || attachments.length === 0) return null;
 
-    // Note: Preloading is now handled by React Query in the main ThreadContent component
-    // to avoid duplicate requests with different content types
+    // Filter out empty strings and check if we have any valid attachments
+    const validAttachments = attachments.filter(attachment => attachment && attachment.trim() !== '');
+    if (validAttachments.length === 0) return null;
 
     return <FileAttachmentGrid
-        attachments={attachments}
+        attachments={validAttachments}
         onFileClick={fileViewerHandler}
         showPreviews={true}
         sandboxId={sandboxId}
@@ -109,7 +87,6 @@ export function renderMarkdownContent(
         );
     }
 
-    // Check if content contains the new Cursor-style format
     if (isNewXmlFormat(content)) {
         const contentParts: React.ReactNode[] = [];
         let lastIndex = 0;
@@ -124,7 +101,7 @@ export function renderMarkdownContent(
                 const textBeforeBlock = content.substring(lastIndex, match.index);
                 if (textBeforeBlock.trim()) {
                     contentParts.push(
-                        <PipedreamUrlDetector key={`md-${lastIndex}`} content={textBeforeBlock} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words" />
+                        <ComposioUrlDetector key={`md-${lastIndex}`} content={textBeforeBlock} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words" />
                     );
                 }
             }
@@ -147,7 +124,7 @@ export function renderMarkdownContent(
                     // Render ask tool content with attachment UI
                     contentParts.push(
                         <div key={`ask-${match.index}-${index}`} className="space-y-3">
-                            <PipedreamUrlDetector content={askText} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words [&>:first-child]:mt-0 prose-headings:mt-3" />
+                            <ComposioUrlDetector content={askText} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words [&>:first-child]:mt-0 prose-headings:mt-3" />
                             {renderAttachments(attachmentArray, fileViewerHandler, sandboxId, project)}
                         </div>
                     );
@@ -163,7 +140,7 @@ export function renderMarkdownContent(
                     // Render complete tool content with attachment UI
                     contentParts.push(
                         <div key={`complete-${match.index}-${index}`} className="space-y-3">
-                            <PipedreamUrlDetector content={completeText} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words [&>:first-child]:mt-0 prose-headings:mt-3" />
+                            <ComposioUrlDetector content={completeText} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words [&>:first-child]:mt-0 prose-headings:mt-3" />
                             {renderAttachments(attachmentArray, fileViewerHandler, sandboxId, project)}
                         </div>
                     );
@@ -210,12 +187,12 @@ export function renderMarkdownContent(
             const remainingText = content.substring(lastIndex);
             if (remainingText.trim()) {
                 contentParts.push(
-                    <PipedreamUrlDetector key={`md-${lastIndex}`} content={remainingText} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words" />
+                    <ComposioUrlDetector key={`md-${lastIndex}`} content={remainingText} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words" />
                 );
             }
         }
 
-        return contentParts.length > 0 ? contentParts : <PipedreamUrlDetector content={content} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words" />;
+        return contentParts.length > 0 ? contentParts : <ComposioUrlDetector content={content} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words" />;
     }
 
     // Fall back to old XML format handling
@@ -226,7 +203,7 @@ export function renderMarkdownContent(
 
     // If no XML tags found, just return the full content as markdown
     if (!content.match(xmlRegex)) {
-        return <PipedreamUrlDetector content={content} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words" />;
+        return <ComposioUrlDetector content={content} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words" />;
     }
 
     while ((match = xmlRegex.exec(content)) !== null) {
@@ -234,7 +211,7 @@ export function renderMarkdownContent(
         if (match.index > lastIndex) {
             const textBeforeTag = content.substring(lastIndex, match.index);
             contentParts.push(
-                <PipedreamUrlDetector key={`md-${lastIndex}`} content={textBeforeTag} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none inline-block mr-1 break-words" />
+                <ComposioUrlDetector key={`md-${lastIndex}`} content={textBeforeTag} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none inline-block mr-1 break-words" />
             );
         }
 
@@ -256,7 +233,7 @@ export function renderMarkdownContent(
             // Render <ask> tag content with attachment UI (using the helper)
             contentParts.push(
                 <div key={`ask-${match.index}`} className="space-y-3">
-                    <PipedreamUrlDetector content={askContent} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words [&>:first-child]:mt-0 prose-headings:mt-3" />
+                    <ComposioUrlDetector content={askContent} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words [&>:first-child]:mt-0 prose-headings:mt-3" />
                     {renderAttachments(attachments, fileViewerHandler, sandboxId, project)}
                 </div>
             );
@@ -274,7 +251,7 @@ export function renderMarkdownContent(
             // Render <complete> tag content with attachment UI (using the helper)
             contentParts.push(
                 <div key={`complete-${match.index}`} className="space-y-3">
-                    <PipedreamUrlDetector content={completeContent} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words [&>:first-child]:mt-0 prose-headings:mt-3" />
+                    <ComposioUrlDetector content={completeContent} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words [&>:first-child]:mt-0 prose-headings:mt-3" />
                     {renderAttachments(attachments, fileViewerHandler, sandboxId, project)}
                 </div>
             );
@@ -307,7 +284,7 @@ export function renderMarkdownContent(
     // Add text after the last tag
     if (lastIndex < content.length) {
         contentParts.push(
-            <PipedreamUrlDetector key={`md-${lastIndex}`} content={content.substring(lastIndex)} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words" />
+            <ComposioUrlDetector key={`md-${lastIndex}`} content={content.substring(lastIndex)} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none break-words" />
         );
     }
 
@@ -334,6 +311,8 @@ export interface ThreadContentProps {
     agentName?: string;
     agentAvatar?: React.ReactNode;
     emptyStateComponent?: React.ReactNode; // Add custom empty state component prop
+    threadMetadata?: any; // Add thread metadata prop
+    scrollContainerRef?: React.RefObject<HTMLDivElement>; // Add scroll container ref prop
 }
 
 export const ThreadContent: React.FC<ThreadContentProps> = ({
@@ -356,35 +335,114 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
     agentName = 'Suna',
     agentAvatar = <KortixLogo size={16} />,
     emptyStateComponent,
+    threadMetadata,
+    scrollContainerRef,
 }) => {
-    const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const latestMessageRef = useRef<HTMLDivElement>(null);
-    const [showScrollButton, setShowScrollButton] = useState(false);
-    const [, setUserHasScrolled] = useState(false);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const [shouldJustifyToTop, setShouldJustifyToTop] = useState(false);
     const { session } = useAuth();
 
     // React Query file preloader
     const { preloadFiles } = useFilePreloader();
 
     const containerClassName = isPreviewMode
-        ? "flex-1 overflow-y-auto scrollbar-thin scrollbar-track-secondary/0 scrollbar-thumb-primary/10 scrollbar-thumb-rounded-full hover:scrollbar-thumb-primary/10 px-6 py-4 pb-72"
-        : "flex-1 overflow-y-auto scrollbar-thin scrollbar-track-secondary/0 scrollbar-thumb-primary/10 scrollbar-thumb-rounded-full hover:scrollbar-thumb-primary/10 px-6 py-4 pb-72 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60";
+        ? "flex-1 overflow-y-auto scrollbar-thin scrollbar-track-secondary/0 scrollbar-thumb-primary/10 scrollbar-thumb-rounded-full hover:scrollbar-thumb-primary/10 px-6 py-4 pb-0"
+        : "flex-1 overflow-y-auto scrollbar-thin scrollbar-track-secondary/0 scrollbar-thumb-primary/10 scrollbar-thumb-rounded-full hover:scrollbar-thumb-primary/10 px-6 py-4 pb-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60";
 
     // In playback mode, we use visibleMessages instead of messages
     const displayMessages = readOnly && visibleMessages ? visibleMessages : messages;
 
-    const handleScroll = () => {
-        if (!messagesContainerRef.current) return;
-        const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-        const isScrolledUp = scrollHeight - scrollTop - clientHeight > 100;
-        setShowScrollButton(isScrolledUp);
-        setUserHasScrolled(isScrolledUp);
-    };
+    // Helper function to get agent info robustly
+    const getAgentInfo = useCallback(() => {
+        // First check thread metadata for is_agent_builder flag
+        if (threadMetadata?.is_agent_builder) {
+            return {
+                name: 'Agent Builder',
+                avatar: (
+                    <div className="h-5 w-5 flex items-center justify-center rounded text-xs">
+                        <span className="text-lg">🤖</span>
+                    </div>
+                )
+            };
+        }
 
-    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-        messagesEndRef.current?.scrollIntoView({ behavior });
+        // Then check recent messages for agent info
+        const recentAssistantWithAgent = [...displayMessages].reverse().find(msg =>
+            msg.type === 'assistant' && (msg.agents?.avatar || msg.agents?.avatar_color || msg.agents?.name)
+        );
+
+        if (recentAssistantWithAgent?.agents?.name === 'Agent Builder') {
+            return {
+                name: 'Agent Builder',
+                avatar: (
+                    <div className="h-5 w-5 flex items-center justify-center rounded text-xs">
+                        <span className="text-lg">🤖</span>
+                    </div>
+                )
+            };
+        }
+
+        if (recentAssistantWithAgent?.agents?.name) {
+            const isSunaAgent = recentAssistantWithAgent.agents.name === 'Suna';
+            const avatar = recentAssistantWithAgent.agents.avatar ? (
+                <>
+                    {isSunaAgent ? (
+                        <div className="h-5 w-5 flex items-center justify-center rounded text-xs">
+                            <KortixLogo size={16} />
+                        </div>
+                    ) : (
+                        <div className="h-5 w-5 flex items-center justify-center rounded text-xs">
+                            <span className="text-lg">{recentAssistantWithAgent.agents.avatar}</span>
+                        </div>
+                    )}
+                </>
+            ) : (
+                <div className="h-5 w-5 flex items-center justify-center rounded text-xs">
+                    <KortixLogo size={16} />
+                </div>
+            );
+            return {
+                name: recentAssistantWithAgent.agents.name,
+                avatar
+            };
+        }
+        return {
+            name: agentName || 'Suna',
+            avatar: agentAvatar
+        };
+    }, [threadMetadata, displayMessages, agentName, agentAvatar]);
+
+    // Simplified scroll handler - flex-column-reverse handles positioning
+    const handleScroll = useCallback(() => {
+        // No scroll logic needed with flex-column-reverse
     }, []);
+
+    // No scroll-to-bottom needed with flex-column-reverse
+
+    // No auto-scroll needed with flex-column-reverse - CSS handles it
+
+    // Smart justify-content based on content height
+    useEffect(() => {
+        const checkContentHeight = () => {
+            const container = (scrollContainerRef || messagesContainerRef).current;
+            const content = contentRef.current;
+            if (!container || !content) return;
+
+            const containerHeight = container.clientHeight;
+            const contentHeight = content.scrollHeight;
+            setShouldJustifyToTop(contentHeight <= containerHeight);
+        };
+
+        checkContentHeight();
+        const resizeObserver = new ResizeObserver(checkContentHeight);
+        if (contentRef.current) resizeObserver.observe(contentRef.current);
+        const containerRef = (scrollContainerRef || messagesContainerRef).current;
+        if (containerRef) resizeObserver.observe(containerRef);
+
+        return () => resizeObserver.disconnect();
+    }, [displayMessages, streamingTextContent, agentStatus, scrollContainerRef]);
 
     // Preload all message attachments when messages change or sandboxId is provided
     React.useEffect(() => {
@@ -434,13 +492,13 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                     )}
                 </div>
             ) : (
-                // Render scrollable content container
+                // Render scrollable content container with column-reverse
                 <div
-                    ref={messagesContainerRef}
-                    className={containerClassName}
+                    ref={scrollContainerRef || messagesContainerRef}
+                    className={`${containerClassName} flex flex-col-reverse ${shouldJustifyToTop ? 'justify-end min-h-full' : ''}`}
                     onScroll={handleScroll}
                 >
-                    <div className="mx-auto max-w-3xl md:px-8 min-w-0">
+                    <div ref={contentRef} className="mx-auto max-w-3xl md:px-8 min-w-0 w-full">
                         <div className="space-y-8 min-w-0">
                             {(() => {
 
@@ -631,9 +689,9 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                             <div key={group.key} className="flex justify-end">
                                                 <div className="flex max-w-[85%] rounded-3xl rounded-br-lg bg-card border px-4 py-3 break-words overflow-hidden">
                                                     <div className="space-y-3 min-w-0 flex-1">
-                                                                                                {cleanContent && (
-                                            <PipedreamUrlDetector content={cleanContent} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none [&>:first-child]:mt-0 prose-headings:mt-3 break-words overflow-wrap-anywhere" />
-                                        )}
+                                                        {cleanContent && (
+                                                            <ComposioUrlDetector content={cleanContent} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none [&>:first-child]:mt-0 prose-headings:mt-3 break-words overflow-wrap-anywhere" />
+                                                        )}
 
                                                         {/* Use the helper function to render user attachments */}
                                                         {renderAttachments(attachments as string[], handleOpenFileViewer, sandboxId, project)}
@@ -647,44 +705,10 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                                 <div className="flex flex-col gap-2">
                                                     <div className="flex items-center">
                                                         <div className="rounded-md flex items-center justify-center relative">
-                                                            {(() => {
-                                                                const firstAssistantWithAgent = group.messages.find(msg =>
-                                                                    msg.type === 'assistant' && (msg.agents?.avatar || msg.agents?.avatar_color)
-                                                                );
-
-                                                                const isSunaAgent = firstAssistantWithAgent?.agents?.name === 'Suna';
-
-                                                                if (firstAssistantWithAgent?.agents?.avatar) {
-                                                                    const avatar = firstAssistantWithAgent.agents.avatar;
-                                                                    return (
-                                                                        <>
-                                                                            {isSunaAgent ? (
-                                                                                <div className="h-5 w-5 flex items-center justify-center rounded text-xs">
-                                                                                    <KortixLogo size={16} />
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div
-                                                                                    className="h-5 w-5 flex items-center justify-center rounded text-xs"
-                                                                                >
-                                                                                    <span className="text-lg">{avatar}</span>
-                                                                                </div>
-                                                                            )}
-                                                                        </>
-                                                                    );
-                                                                }
-                                                                return <KortixLogo size={16} />;
-                                                            })()}
+                                                            {getAgentInfo().avatar}
                                                         </div>
                                                         <p className='ml-2 text-sm text-muted-foreground'>
-                                                            {(() => {
-                                                                const firstAssistantWithAgent = group.messages.find(msg =>
-                                                                    msg.type === 'assistant' && msg.agents?.name
-                                                                );
-                                                                if (firstAssistantWithAgent?.agents?.name) {
-                                                                    return firstAssistantWithAgent.agents.name;
-                                                                }
-                                                                return 'Suna';
-                                                            })()}
+                                                            {getAgentInfo().name}
                                                         </p>
                                                     </div>
 
@@ -702,7 +726,7 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                                                                     Type: {message.type} | ID: {message.message_id || 'no-id'}
                                                                                 </div>
                                                                                 <pre className="text-xs font-mono whitespace-pre-wrap overflow-x-auto p-2 border border-border rounded-md bg-muted/30">
-                                                                                    {message.content}
+                                                                                    {JSON.stringify(message.content, null, 2)}
                                                                                 </pre>
                                                                                 {message.metadata && message.metadata !== '{}' && (
                                                                                     <div className="mt-2">
@@ -710,7 +734,7 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                                                                             Metadata:
                                                                                         </div>
                                                                                         <pre className="text-xs font-mono whitespace-pre-wrap overflow-x-auto p-2 border border-border rounded-md bg-muted/30">
-                                                                                            {message.metadata}
+                                                                                            {JSON.stringify(message.metadata, null, 2)}
                                                                                         </pre>
                                                                                     </div>
                                                                                 )}
@@ -808,7 +832,7 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                                                         return (
                                                                             <>
                                                                                 {textBeforeTag && (
-                                                                                    <PipedreamUrlDetector content={textBeforeTag} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none [&>:first-child]:mt-0 prose-headings:mt-3 break-words overflow-wrap-anywhere" />
+                                                                                    <ComposioUrlDetector content={textBeforeTag} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none [&>:first-child]:mt-0 prose-headings:mt-3 break-words overflow-wrap-anywhere" />
                                                                                 )}
                                                                                 {showCursor && (
                                                                                     <span className="inline-block h-4 w-0.5 bg-primary ml-0.5 -mb-1 animate-pulse" />
@@ -871,7 +895,7 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                                                                 ) : (
                                                                                     <>
                                                                                         {textBeforeTag && (
-                                                                                            <PipedreamUrlDetector content={textBeforeTag} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none [&>:first-child]:mt-0 prose-headings:mt-3 break-words overflow-wrap-anywhere" />
+                                                                                            <ComposioUrlDetector content={textBeforeTag} className="text-sm prose prose-sm dark:prose-invert chat-markdown max-w-none [&>:first-child]:mt-0 prose-headings:mt-3 break-words overflow-wrap-anywhere" />
                                                                                         )}
                                                                                         {showCursor && (
                                                                                             <span className="inline-block h-4 w-0.5 bg-primary ml-0.5 -mb-1 animate-pulse" />
@@ -910,9 +934,11 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                             {/* Logo positioned above the loader */}
                                             <div className="flex items-center">
                                                 <div className="rounded-md flex items-center justify-center">
-                                                    {agentAvatar}
+                                                    {getAgentInfo().avatar}
                                                 </div>
-                                                <p className='ml-2 text-sm text-muted-foreground'>{agentName || 'Suna'}</p>
+                                                <p className='ml-2 text-sm text-muted-foreground'>
+                                                    {getAgentInfo().name}
+                                                </p>
                                             </div>
 
                                             {/* Loader content */}
@@ -922,17 +948,17 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                         </div>
                                     </div>
                                 )}
-
-                            {/* For playback mode - Show tool call animation if active */}
                             {readOnly && currentToolCall && (
                                 <div ref={latestMessageRef}>
                                     <div className="flex flex-col gap-2">
                                         {/* Logo positioned above the tool call */}
                                         <div className="flex justify-start">
                                             <div className="rounded-md flex items-center justify-center">
-                                                {agentAvatar}
+                                                {getAgentInfo().avatar}
                                             </div>
-                                            <p className='ml-2 text-sm text-muted-foreground'>{agentName || 'Suna'}</p>
+                                            <p className='ml-2 text-sm text-muted-foreground'>
+                                                {getAgentInfo().name}
+                                            </p>
                                         </div>
 
                                         {/* Tool call content */}
@@ -955,9 +981,11 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                         {/* Logo positioned above the streaming indicator */}
                                         <div className="flex justify-start">
                                             <div className="rounded-md flex items-center justify-center">
-                                                {agentAvatar}
+                                                {getAgentInfo().avatar}
                                             </div>
-                                            <p className='ml-2 text-sm text-muted-foreground'>{agentName || 'Suna'}</p>
+                                            <p className='ml-2 text-sm text-muted-foreground'>
+                                                {getAgentInfo().name}
+                                            </p>
                                         </div>
 
                                         {/* Streaming indicator content */}
@@ -971,23 +999,13 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                                     </div>
                                 </div>
                             )}
+                            <div className="!h-48" />
                         </div>
                     </div>
-                    <div ref={messagesEndRef} className="h-1" />
                 </div>
             )}
 
-            {/* Scroll to bottom button */}
-            {showScrollButton && (
-                <Button
-                    variant="outline"
-                    size="icon"
-                    className="fixed bottom-20 right-6 z-10 h-8 w-8 rounded-full shadow-md"
-                    onClick={() => scrollToBottom('smooth')}
-                >
-                    <ArrowDown className="h-4 w-4" />
-                </Button>
-            )}
+            {/* No scroll button needed with flex-column-reverse */}
         </>
     );
 };

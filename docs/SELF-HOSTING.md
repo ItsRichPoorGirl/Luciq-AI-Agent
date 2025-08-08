@@ -64,7 +64,7 @@ Obtain the following API keys:
 #### Optional
 
 - **RapidAPI** - For accessing additional API services (enables LinkedIn scraping and other tools)
-- **Smithery** - For custom agents and workflows ([Get API key](https://smithery.ai/))
+- **Custom MCP Servers** - For extending functionality with custom tools
 
 ### 3. Required Software
 
@@ -164,14 +164,11 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 REDIS_SSL=false
 
-# RABBITMQ
-RABBITMQ_HOST=rabbitmq
-RABBITMQ_PORT=5672
-
 # LLM Providers
 ANTHROPIC_API_KEY=your-anthropic-key
 OPENAI_API_KEY=your-openai-key
 OPENROUTER_API_KEY=your-openrouter-key
+GEMINI_API_KEY=your-gemini-api-key
 MORPH_API_KEY=
 MODEL_TO_USE=anthropic/claude-sonnet-4-20250514
 
@@ -199,7 +196,7 @@ MCP_CREDENTIAL_ENCRYPTION_KEY=your-generated-encryption-key
 
 # Optional APIs
 RAPID_API_KEY=your-rapidapi-key
-SMITHERY_API_KEY=your-smithery-key
+# MCP server configurations in database
 
 NEXT_PUBLIC_URL=http://localhost:3000
 ```
@@ -246,10 +243,10 @@ python start.py # Use the same to stop it later
 
 This method requires you to start each component separately:
 
-1. Start Redis and RabbitMQ (required for backend):
+1. Start Redis (required for backend):
 
 ```bash
-docker compose up redis rabbitmq -d
+docker compose up redis -d
 # or
 python start.py # Use the same to stop it later
 ```

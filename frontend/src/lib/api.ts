@@ -29,6 +29,35 @@ export class BillingError extends Error {
   }
 }
 
+// Custom error for agent run limit exceeded
+export class AgentRunLimitError extends Error {
+  status: number;
+  detail: { 
+    message: string;
+    running_thread_ids: string[];
+    running_count: number;
+  };
+
+  constructor(
+    status: number,
+    detail: { 
+      message: string;
+      running_thread_ids: string[];
+      running_count: number;
+      [key: string]: any;
+    },
+    message?: string,
+  ) {
+    super(message || detail.message || `Agent Run Limit Exceeded: ${status}`);
+    this.name = 'AgentRunLimitError';
+    this.status = status;
+    this.detail = detail;
+
+    // Set the prototype explicitly.
+    Object.setPrototypeOf(this, AgentRunLimitError.prototype);
+  }
+}
+
 export class NoAccessTokenAvailableError extends Error {
   constructor(message?: string, options?: { cause?: Error }) {
     super(message || 'No access token available', options);
@@ -627,7 +656,7 @@ export const startAgent = async (
     enable_thinking?: boolean;
     reasoning_effort?: string;
     stream?: boolean;
-    agent_id?: string;
+    agent_id?: string; // Optional again
   },
 ): Promise<{ agent_run_id: string }> => {
   try {
@@ -656,7 +685,6 @@ export const startAgent = async (
       enable_thinking: false,
       reasoning_effort: 'low',
       stream: true,
-      agent_id: undefined,
     };
 
     const finalOptions = { ...defaultOptions, ...options };
@@ -708,6 +736,28 @@ export const startAgent = async (
         }
       }
 
+      // Check for 429 Too Many Requests (Agent Run Limit)
+      if (response.status === 429) {
+          const errorData = await response.json();
+          console.error(`[API] Agent run limit error starting agent (429):`, errorData);
+          // Ensure detail exists and has required properties
+          const detail = errorData?.detail || { 
+            message: 'Too many agent runs running',
+            running_thread_ids: [],
+            running_count: 0,
+          };
+          if (typeof detail.message !== 'string') {
+            detail.message = 'Too many agent runs running';
+          }
+          if (!Array.isArray(detail.running_thread_ids)) {
+            detail.running_thread_ids = [];
+          }
+          if (typeof detail.running_count !== 'number') {
+            detail.running_count = 0;
+          }
+          throw new AgentRunLimitError(response.status, detail);
+      }
+
       // Handle other errors
       const errorText = await response
         .text()
@@ -724,8 +774,8 @@ export const startAgent = async (
     const result = await response.json();
     return result;
   } catch (error) {
-    // Rethrow BillingError instances directly
-    if (error instanceof BillingError) {
+    // Rethrow BillingError and AgentRunLimitError instances directly
+    if (error instanceof BillingError || error instanceof AgentRunLimitError) {
       throw error;
     }
 
@@ -1002,7 +1052,7 @@ export const streamAgent = (
       eventSource.onmessage = (event) => {
         try {
           const rawData = event.data;
-          if (rawData.includes('"type":"ping"')) return;
+          if (rawData.includes('"type": "ping"')) return;
 
           // Log raw data for debugging (truncated for readability)
           console.log(
@@ -1056,18 +1106,15 @@ export const streamAgent = (
 
           // Check for completion messages
           if (
-            rawData.includes('"type":"status"') &&
-            rawData.includes('"status":"completed"')
+            rawData.includes('"type": "status"') &&
+            rawData.includes('"status": "completed"')
           ) {
             console.log(
               `[STREAM] Detected completion status message for ${agentRunId}`,
             );
 
             // Check for specific completion messages that indicate we should stop checking
-            if (
-              rawData.includes('Run data not available for streaming') ||
-              rawData.includes('Stream ended with status: completed')
-            ) {
+            if (rawData.includes('Agent run completed successfully')) {
               console.log(
                 `[STREAM] Detected final completion message for ${agentRunId}, adding to non-running set`,
               );
@@ -1088,24 +1135,15 @@ export const streamAgent = (
 
           // Check for thread run end message
           if (
-            rawData.includes('"type":"status"') &&
-            rawData.includes('"status_type":"thread_run_end"')
+            rawData.includes('"type": "status"') &&
+            rawData.includes('thread_run_end')
           ) {
             console.log(
               `[STREAM] Detected thread run end message for ${agentRunId}`,
             );
 
-            // Add to non-running set
-            nonRunningAgentRuns.add(agentRunId);
-
             // Notify about the message
             callbacks.onMessage(rawData);
-
-            // Clean up
-            eventSource.close();
-            activeStreams.delete(agentRunId);
-            callbacks.onClose();
-
             return;
           }
 
@@ -1526,6 +1564,54 @@ export const initiateAgent = async (
     });
 
     if (!response.ok) {
+      // Check for 402 Payment Required first
+      if (response.status === 402) {
+        try {
+          const errorData = await response.json();
+          console.error(`[API] Billing error initiating agent (402):`, errorData);
+          // Ensure detail exists and has a message property
+          const detail = errorData?.detail || { message: 'Payment Required' };
+          if (typeof detail.message !== 'string') {
+            detail.message = 'Payment Required'; // Default message if missing
+          }
+          throw new BillingError(response.status, detail);
+        } catch (parseError) {
+          // Handle cases where parsing fails or the structure isn't as expected
+          console.error(
+            '[API] Could not parse 402 error response body:',
+            parseError,
+          );
+          throw new BillingError(
+            response.status,
+            { message: 'Payment Required' },
+            `Error initiating agent: ${response.statusText} (402)`,
+          );
+        }
+      }
+
+      // Check for 429 Too Many Requests (Agent Run Limit)
+      if (response.status === 429) {
+          const errorData = await response.json();
+          console.error(`[API] Agent run limit error initiating agent (429):`, errorData);
+          // Ensure detail exists and has required properties
+          const detail = errorData?.detail || { 
+            message: 'Too many agent runs running',
+            running_thread_ids: [],
+            running_count: 0,
+          };
+          if (typeof detail.message !== 'string') {
+            detail.message = 'Too many agent runs running';
+          }
+          if (!Array.isArray(detail.running_thread_ids)) {
+            detail.running_thread_ids = [];
+          }
+          if (typeof detail.running_count !== 'number') {
+            detail.running_count = 0;
+          }
+          throw new AgentRunLimitError(response.status, detail);
+      }
+
+      // Handle other errors
       const errorText = await response
         .text()
         .catch(() => 'No error details available');
@@ -1535,9 +1621,7 @@ export const initiateAgent = async (
         errorText,
       );
     
-      if (response.status === 402) {
-        throw new Error('Payment Required');
-      } else if (response.status === 401) {
+      if (response.status === 401) {
         throw new Error('Authentication error: Please sign in again');
       } else if (response.status >= 500) {
         throw new Error('Server error: Please try again later');
@@ -1551,6 +1635,11 @@ export const initiateAgent = async (
     const result = await response.json();
     return result;
   } catch (error) {
+    // Rethrow BillingError and AgentRunLimitError instances directly
+    if (error instanceof BillingError || error instanceof AgentRunLimitError) {
+      throw error;
+    }
+
     console.error('[API] Failed to initiate agent:', error);
 
     if (
@@ -1590,6 +1679,7 @@ export interface CreateCheckoutSessionRequest {
   success_url: string;
   cancel_url: string;
   referral_id?: string;
+  commitment_type?: 'monthly' | 'yearly' | 'yearly_commitment';
 }
 
 export interface CreatePortalSessionRequest {
@@ -1599,19 +1689,102 @@ export interface CreatePortalSessionRequest {
 export interface SubscriptionStatus {
   status: string; // Includes 'active', 'trialing', 'past_due', 'scheduled_downgrade', 'no_subscription'
   plan_name?: string;
-  price_id?: string; // Added
-  current_period_end?: string; // ISO Date string
-  cancel_at_period_end: boolean;
-  trial_end?: string; // ISO Date string
+  price_id?: string;
+  current_period_end?: string; // ISO datetime string
+  cancel_at_period_end?: boolean;
+  trial_end?: string; // ISO datetime string
   minutes_limit?: number;
   cost_limit?: number;
   current_usage?: number;
   // Fields for scheduled changes
-  has_schedule: boolean;
+  has_schedule?: boolean;
   scheduled_plan_name?: string;
-  scheduled_price_id?: string; // Added
-  scheduled_change_date?: string; // ISO Date string - Deprecate? Check backend usage
-  schedule_effective_date?: string; // ISO Date string - Added for consistency
+  scheduled_price_id?: string;
+  scheduled_change_date?: string; // ISO datetime string
+  // Subscription data for frontend components
+  subscription_id?: string;
+  subscription?: {
+    id: string;
+    status: string;
+    cancel_at_period_end: boolean;
+    current_period_end: number; // timestamp
+  };
+}
+
+export interface CommitmentInfo {
+  has_commitment: boolean;
+  commitment_type?: string;
+  months_remaining?: number;
+  can_cancel: boolean;
+  commitment_end_date?: string;
+}
+
+// Interface for user subscription details from Stripe
+export interface UserSubscriptionResponse {
+  subscription?: {
+    id: string;
+    status: string;
+    current_period_end: number;
+    current_period_start: number;
+    cancel_at_period_end: boolean;
+    cancel_at?: number;
+    items: {
+      data: Array<{
+        id: string;
+        price: {
+          id: string;
+          unit_amount: number;
+          currency: string;
+          recurring: {
+            interval: string;
+            interval_count: number;
+          };
+        };
+        quantity: number;
+      }>;
+    };
+    metadata: {
+      [key: string]: string;
+    };
+  };
+  price_id?: string;
+  plan_name?: string;
+  status?: string;
+  has_schedule?: boolean;
+  scheduled_price_id?: string;
+  current_period_end?: number;
+  current_period_start?: number;
+  cancel_at_period_end?: boolean;
+  cancel_at?: number;
+  customer_email?: string;
+  usage?: {
+    total_usage: number;
+    limit: number;
+  };
+}
+
+// Usage log entry interface
+export interface UsageLogEntry {
+  message_id: string;
+  thread_id: string;
+  created_at: string;
+  content: {
+    usage: {
+      prompt_tokens: number;
+      completion_tokens: number;
+    };
+    model: string;
+  };
+  total_tokens: number;
+  estimated_cost: number;
+  project_id: string;
+}
+
+// Usage logs response interface
+export interface UsageLogsResponse {
+  logs: UsageLogEntry[];
+  has_more: boolean;
+  message?: string;
 }
 
 export interface BillingStatusResponse {
@@ -1641,28 +1814,6 @@ export interface AvailableModelsResponse {
   total_models: number;
 }
 
-export interface UsageLogEntry {
-  message_id: string;
-  thread_id: string;
-  created_at: string;
-  content: {
-    usage: {
-      prompt_tokens: number;
-      completion_tokens: number;
-    };
-    model: string;
-  };
-  total_tokens: number;
-  estimated_cost: number;
-  project_id: string;
-}
-
-export interface UsageLogsResponse {
-  logs: UsageLogEntry[];
-  has_more: boolean;
-  message?: string;
-}
-
 export interface CreateCheckoutSessionResponse {
   status:
     | 'upgraded'
@@ -1671,7 +1822,9 @@ export interface CreateCheckoutSessionResponse {
     | 'no_change'
     | 'new'
     | 'updated'
-    | 'scheduled';
+    | 'scheduled'
+    | 'commitment_created'
+    | 'commitment_blocks_downgrade';
   subscription_id?: string;
   schedule_id?: string;
   session_id?: string;
@@ -1683,12 +1836,39 @@ export interface CreateCheckoutSessionResponse {
     effective_date?: string;
     current_price?: number;
     new_price?: number;
+    commitment_end_date?: string;
+    months_remaining?: number;
     invoice?: {
       id: string;
       status: string;
       amount_due: number;
       amount_paid: number;
     };
+  };
+}
+
+export interface CancelSubscriptionResponse {
+  success: boolean;
+  status: 'cancelled_at_period_end' | 'commitment_prevents_cancellation';
+  message: string;
+  details?: {
+    subscription_id?: string;
+    cancellation_effective_date?: string;
+    current_period_end?: number;
+    access_until?: string;
+    months_remaining?: number;
+    commitment_end_date?: string;
+    can_cancel_after?: string;
+  };
+}
+
+export interface ReactivateSubscriptionResponse {
+  success: boolean;
+  status: 'reactivated' | 'not_cancelled';
+  message: string;
+  details?: {
+    subscription_id?: string;
+    next_billing_date?: string;
   };
 }
 
@@ -1850,6 +2030,48 @@ export const getSubscription = async (): Promise<SubscriptionStatus> => {
   }
 };
 
+export const getSubscriptionCommitment = async (subscriptionId: string): Promise<CommitmentInfo> => {
+  try {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new NoAccessTokenAvailableError();
+    }
+
+    const response = await fetch(`${API_URL}/billing/subscription-commitment/${subscriptionId}`, {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response
+        .text()
+        .catch(() => 'No error details available');
+      console.error(
+        `Error getting subscription commitment: ${response.status} ${response.statusText}`,
+        errorText,
+      );
+      throw new Error(
+        `Error getting subscription commitment: ${response.statusText} (${response.status})`,
+      );
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof NoAccessTokenAvailableError) {
+      throw error;
+    }
+
+    console.error('Failed to get subscription commitment:', error);
+    handleApiError(error, { operation: 'load subscription commitment', resource: 'commitment information' });
+    throw error;
+  }
+};
+
 export const getAvailableModels = async (): Promise<AvailableModelsResponse> => {
   try {
     const supabase = createClient();
@@ -1930,6 +2152,86 @@ export const checkBillingStatus = async (): Promise<BillingStatusResponse> => {
     }
 
     console.error('Failed to check billing status:', error);
+    throw error;
+  }
+};
+
+export const cancelSubscription = async (): Promise<CancelSubscriptionResponse> => {
+  try {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new NoAccessTokenAvailableError();
+    }
+
+    const response = await fetch(`${API_URL}/billing/cancel-subscription`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response
+        .text()
+        .catch(() => 'No error details available');
+      console.error(
+        `Error cancelling subscription: ${response.status} ${response.statusText}`,
+        errorText,
+      );
+      throw new Error(
+        `Error cancelling subscription: ${response.statusText} (${response.status})`,
+      );
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Failed to cancel subscription:', error);
+    handleApiError(error, { operation: 'cancel subscription', resource: 'subscription' });
+    throw error;
+  }
+};
+
+export const reactivateSubscription = async (): Promise<ReactivateSubscriptionResponse> => {
+  try {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new NoAccessTokenAvailableError();
+    }
+
+    const response = await fetch(`${API_URL}/billing/reactivate-subscription`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response
+        .text()
+        .catch(() => 'No error details available');
+      console.error(
+        `Error reactivating subscription: ${response.status} ${response.statusText}`,
+        errorText,
+      );
+      throw new Error(
+        `Error reactivating subscription: ${response.statusText} (${response.status})`,
+      );
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Failed to reactivate subscription:', error);
+    handleApiError(error, { operation: 'reactivate subscription', resource: 'subscription' });
     throw error;
   }
 };

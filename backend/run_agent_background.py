@@ -15,7 +15,6 @@ import uuid
 from agentpress.thread_manager import ThreadManager
 from services.supabase import DBConnection
 from services import redis
-from dramatiq.brokers.rabbitmq import RabbitmqBroker
 from dramatiq.brokers.redis import RedisBroker
 import os
 from services.langfuse import langfuse
@@ -25,24 +24,21 @@ from utils.config import config
 import sentry_sdk
 from typing import Dict, Any
 
-# Configure broker based on environment
-rabbitmq_host = os.getenv('RABBITMQ_HOST')
+# Configure Redis broker with SSL support for production
 redis_host = config.REDIS_HOST
+redis_port = config.REDIS_PORT
+redis_password = config.REDIS_PASSWORD
 
-if rabbitmq_host:
-    # Use RabbitMQ broker (local development)
-    rabbitmq_port = int(os.getenv('RABBITMQ_PORT', 5672))
-    broker = RabbitmqBroker(host=rabbitmq_host, port=rabbitmq_port, middleware=[dramatiq.middleware.AsyncIO()])
-    logger.info(f"Using RabbitMQ broker at {rabbitmq_host}:{rabbitmq_port}")
+# Build Redis URL with SSL support if configured
+if config.REDIS_SSL:
+    redis_url = f"rediss://:{redis_password}@{redis_host}:{redis_port}"
 else:
-    # Use Redis broker (production)
-    redis_url = f"redis://:{config.REDIS_PASSWORD}@{config.REDIS_HOST}:{config.REDIS_PORT}"
-    if config.REDIS_SSL:
-        redis_url = f"rediss://:{config.REDIS_PASSWORD}@{config.REDIS_HOST}:{config.REDIS_PORT}"
-    broker = RedisBroker(url=redis_url, middleware=[dramatiq.middleware.AsyncIO()])
-    logger.info(f"Using Redis broker at {config.REDIS_HOST}:{config.REDIS_PORT} (SSL: {config.REDIS_SSL})")
+    redis_url = f"redis://:{redis_password}@{redis_host}:{redis_port}"
 
-dramatiq.set_broker(broker)
+redis_broker = RedisBroker(url=redis_url, middleware=[dramatiq.middleware.AsyncIO()])
+dramatiq.set_broker(redis_broker)
+
+logger.info(f"Using Redis broker at {redis_host}:{redis_port} (SSL: {config.REDIS_SSL})")
 
 
 _initialized = False
@@ -243,7 +239,7 @@ async def run_agent_background(
         all_responses = [json.loads(r) for r in all_responses_json]
 
         # Update DB status
-        await update_agent_run_status(client, agent_run_id, final_status, error=error_message, responses=all_responses)
+        await update_agent_run_status(client, agent_run_id, final_status, error=error_message)
 
         # Publish final control signal (END_STREAM or ERROR)
         control_signal = "END_STREAM" if final_status == "completed" else "ERROR" if final_status == "failed" else "STOP"
@@ -280,7 +276,7 @@ async def run_agent_background(
              all_responses = [error_response] # Use the error message we tried to push
 
         # Update DB status
-        await update_agent_run_status(client, agent_run_id, "failed", error=f"{error_message}\n{traceback_str}", responses=all_responses)
+        await update_agent_run_status(client, agent_run_id, "failed", error=f"{error_message}\n{traceback_str}")
 
         # Publish ERROR signal
         try:
@@ -363,7 +359,6 @@ async def update_agent_run_status(
     agent_run_id: str,
     status: str,
     error: Optional[str] = None,
-    responses: Optional[list[any]] = None # Expects parsed list of dicts
 ) -> bool:
     """
     Centralized function to update agent run status.
@@ -378,9 +373,7 @@ async def update_agent_run_status(
         if error:
             update_data["error"] = error
 
-        if responses:
-            # Ensure responses are stored correctly as JSONB
-            update_data["responses"] = responses
+
 
         # Retry up to 3 times
         for retry in range(3):

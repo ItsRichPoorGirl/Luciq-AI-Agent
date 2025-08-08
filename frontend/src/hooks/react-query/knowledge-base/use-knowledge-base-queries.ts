@@ -34,28 +34,6 @@ const useAuthHeaders = () => {
   return { getHeaders };
 };
 
-export function useKnowledgeBaseEntries(threadId: string, includeInactive = false) {
-  const { getHeaders } = useAuthHeaders();
-  
-  return useQuery({
-    queryKey: knowledgeBaseKeys.thread(threadId),
-    queryFn: async (): Promise<KnowledgeBaseListResponse> => {
-      const headers = await getHeaders();
-      const url = new URL(`${API_URL}/knowledge-base/threads/${threadId}`);
-      url.searchParams.set('include_inactive', includeInactive.toString());
-      
-      const response = await fetch(url.toString(), { headers });
-      
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to fetch knowledge base entries');
-      }
-      
-      return await response.json();
-    },
-    enabled: !!threadId,
-  });
-}
 
 export function useKnowledgeBaseEntry(entryId: string) {
   const { getHeaders } = useAuthHeaders();
@@ -74,63 +52,6 @@ export function useKnowledgeBaseEntry(entryId: string) {
       return await response.json();
     },
     enabled: !!entryId,
-  });
-}
-
-export function useKnowledgeBaseContext(threadId: string, maxTokens = 4000) {
-  const { getHeaders } = useAuthHeaders();
-  
-  return useQuery({
-    queryKey: knowledgeBaseKeys.context(threadId),
-    queryFn: async () => {
-      const headers = await getHeaders();
-      const url = new URL(`${API_URL}/knowledge-base/threads/${threadId}/context`);
-      url.searchParams.set('max_tokens', maxTokens.toString());
-      
-      const response = await fetch(url.toString(), { headers });
-      
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to fetch knowledge base context');
-      }
-      
-      return await response.json();
-    },
-    enabled: !!threadId,
-  });
-}
-
-export function useCreateKnowledgeBaseEntry() {
-  const queryClient = useQueryClient();
-  const { getHeaders } = useAuthHeaders();
-  
-  return useMutation({
-    mutationFn: async ({ threadId, data }: { threadId: string; data: CreateKnowledgeBaseEntryRequest }) => {
-      const headers = await getHeaders();
-      const response = await fetch(`${API_URL}/knowledge-base/threads/${threadId}`, {
-        method: 'POST',
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to create knowledge base entry');
-      }
-      
-      return await response.json();
-    },
-    onSuccess: (_, { threadId }) => {
-      queryClient.invalidateQueries({ queryKey: knowledgeBaseKeys.thread(threadId) });
-      queryClient.invalidateQueries({ queryKey: knowledgeBaseKeys.context(threadId) });
-      toast.success('Knowledge base entry created successfully');
-    },
-    onError: (error) => {
-      toast.error(`Failed to create knowledge base entry: ${error.message}`);
-    },
   });
 }
 
@@ -276,32 +197,6 @@ export function useAgentKnowledgeBaseContext(agentId: string, maxTokens = 4000) 
   });
 }
 
-export function useCombinedKnowledgeBaseContext(threadId: string, agentId?: string, maxTokens = 4000) {
-  const { getHeaders } = useAuthHeaders();
-  
-  return useQuery({
-    queryKey: knowledgeBaseKeys.combinedContext(threadId, agentId),
-    queryFn: async () => {
-      const headers = await getHeaders();
-      const url = new URL(`${API_URL}/knowledge-base/threads/${threadId}/combined-context`);
-      url.searchParams.set('max_tokens', maxTokens.toString());
-      if (agentId) {
-        url.searchParams.set('agent_id', agentId);
-      }
-      
-      const response = await fetch(url.toString(), { headers });
-      
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to fetch combined knowledge base context');
-      }
-      
-      return await response.json();
-    },
-    enabled: !!threadId,
-  });
-}
-
 // New hooks for file upload and git clone operations
 export function useUploadAgentFiles() {
   const queryClient = useQueryClient();
@@ -382,6 +277,8 @@ export function useAgentProcessingJobs(agentId: string) {
   return useQuery({
     queryKey: knowledgeBaseKeys.processingJobs(agentId),
     queryFn: async (): Promise<ProcessingJobsResponse> => {
+      console.log('📊 Fetching processing jobs for agent:', agentId);
+      
       const headers = await getHeaders();
       const response = await fetch(`${API_URL}/knowledge-base/agents/${agentId}/processing-jobs`, { headers });
       
@@ -390,9 +287,43 @@ export function useAgentProcessingJobs(agentId: string) {
         throw new Error(error || 'Failed to fetch processing jobs');
       }
       
-      return await response.json();
+      const data = await response.json();
+      console.log('📊 Processing jobs response:', { 
+        agentId, 
+        jobCount: data.jobs?.length || 0,
+        activeJobs: data.jobs?.filter(job => job.status === 'processing' || job.status === 'pending').length || 0
+      });
+      
+      return data;
     },
     enabled: !!agentId,
-    refetchInterval: 5000,
+    // Smart polling: only poll when there are active processing jobs
+    refetchInterval: (query) => {
+      const data = query.state.data as ProcessingJobsResponse | undefined;
+      
+      // If no data yet, check once after 2 seconds
+      if (!data) {
+        console.log('⏱️ No data yet, polling in 2 seconds');
+        return 2000;
+      }
+      
+      // Check if there are any active processing jobs (pending or processing status)
+      const hasActiveJobs = data.jobs?.some(job => 
+        job.status === 'processing' || job.status === 'pending'
+      );
+      
+      const nextInterval = hasActiveJobs ? 3000 : 30000;
+      console.log('⏱️ Polling decision:', { 
+        hasActiveJobs, 
+        nextInterval: `${nextInterval/1000}s`,
+        jobStatuses: data.jobs?.map(job => job.status) || []
+      });
+      
+      // If there are active jobs, poll every 3 seconds
+      // If no active jobs, poll every 30 seconds (much less frequent)
+      return nextInterval;
+    },
+    // Stop polling when window is not focused to save resources
+    refetchIntervalInBackground: false,
   });
 } 

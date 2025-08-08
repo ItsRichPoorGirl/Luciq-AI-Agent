@@ -5,11 +5,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { MCPConfigurationProps, MCPConfiguration as MCPConfigurationType } from './types';
 import { ConfiguredMcpList } from './configured-mcp-list';
 import { CustomMCPDialog } from './custom-mcp-dialog';
-import { PipedreamRegistry } from '@/components/agents/pipedream/pipedream-registry';
+import { ComposioRegistry } from '../composio/composio-registry';
+import { ComposioToolsManager } from '../composio/composio-tools-manager';
 import { ToolsManager } from './tools-manager';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { agentKeys } from '@/hooks/react-query/agents/keys';
 
 export const MCPConfigurationNew: React.FC<MCPConfigurationProps> = ({
   configuredMCPs,
@@ -22,10 +22,11 @@ export const MCPConfigurationNew: React.FC<MCPConfigurationProps> = ({
   const [showCustomDialog, setShowCustomDialog] = useState(false);
   const [showRegistryDialog, setShowRegistryDialog] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [showPipedreamToolsManager, setShowPipedreamToolsManager] = useState(false);
+  const [showComposioToolsManager, setShowComposioToolsManager] = useState(false);
   const [showCustomToolsManager, setShowCustomToolsManager] = useState(false);
   const [selectedMCPForTools, setSelectedMCPForTools] = useState<MCPConfigurationType | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(agentId);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     setSelectedAgentId(agentId);
@@ -37,7 +38,7 @@ export const MCPConfigurationNew: React.FC<MCPConfigurationProps> = ({
 
   const handleEditMCP = (index: number) => {
     const mcp = configuredMCPs[index];
-    if (mcp.customType === 'pipedream') {
+    if (mcp.customType === 'composio') {
       setEditingIndex(index);
       setShowCustomDialog(true);
     } else {
@@ -48,13 +49,19 @@ export const MCPConfigurationNew: React.FC<MCPConfigurationProps> = ({
 
   const handleConfigureTools = (index: number) => {
     const mcp = configuredMCPs[index];
+    console.log('[MCPConfiguration] Configure tools clicked for MCP:', {
+      index,
+      mcp,
+      enabledTools: mcp.enabledTools,
+      customType: mcp.customType
+    });
     setSelectedMCPForTools(mcp);
-    if (mcp.customType === 'pipedream') {
+    if (mcp.customType === 'composio') {
       const profileId = mcp.selectedProfileId || mcp.config?.profile_id;
       if (profileId) {
-        setShowPipedreamToolsManager(true);
+        setShowComposioToolsManager(true);
       } else {
-        console.warn('Pipedream MCP has no profile_id:', mcp);
+        console.warn('Composio MCP has no profile_id:', mcp);
       }
     } else {
       setShowCustomToolsManager(true);
@@ -80,72 +87,13 @@ export const MCPConfigurationNew: React.FC<MCPConfigurationProps> = ({
     onConfigurationChange([...configuredMCPs, mcpConfig]);
   };
 
-  const handleToolsSelected = async (profileId: string, selectedTools: string[], appName: string, appSlug: string) => {
-    // If we have an agent ID and we're in direct save mode, use the backend API to preserve existing tools
-    if (selectedAgentId && saveMode === 'direct') {
-      try {
-        // Use the robust backend API that preserves all existing tools
-        const response = await fetch(`/api/agents/${selectedAgentId}/pipedream-tools/${profileId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ enabled_tools: selectedTools }),
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to update tools');
-        }
-        
-        // The backend now handles preserving all existing tools and creating a new version
-        setShowRegistryDialog(false);
-        
-        // Invalidate queries to refresh the UI
-        // Note: We'll need to import queryClient for this to work
-        toast.success(`Added ${selectedTools.length} tools from ${appName}!`);
-        return;
-      } catch (error) {
-        console.error('Error updating tools via backend:', error);
-        toast.error('Failed to add tools. Please try again.');
-        return;
-      }
-    }
-    
-    // Fallback to frontend-only mode for callback mode or when no agent is selected
-    const pipedreamMCP: MCPConfigurationType = {
-      name: appName,
-      qualifiedName: `pipedream_${appSlug}_${profileId}`,
-      config: {
-        url: 'https://remote.mcp.pipedream.net',
-        headers: {
-          'x-pd-app-slug': appSlug,
-        },
-        profile_id: profileId
-      },
-      enabledTools: selectedTools,
-      isCustom: true,
-      customType: 'pipedream',
-      selectedProfileId: profileId
-    };
-    const nonPipedreamMCPs = configuredMCPs.filter(mcp => 
-      mcp.customType !== 'pipedream' || 
-      mcp.selectedProfileId !== profileId
-    );
-    onConfigurationChange([...nonPipedreamMCPs, pipedreamMCP]);
+  const handleToolsSelected = (profileId: string, selectedTools: string[], appName: string, appSlug: string) => {
+    console.log('Tools selected:', { profileId, selectedTools, appName, appSlug });
     setShowRegistryDialog(false);
-  };
-
-  const handlePipedreamToolsUpdate = (enabledTools: string[]) => {
-    if (!selectedMCPForTools) return;
-    
-    const updatedMCPs = configuredMCPs.map(mcp => 
-      mcp === selectedMCPForTools 
-        ? { ...mcp, enabledTools }
-        : mcp
-    );
-    onConfigurationChange(updatedMCPs);
-    setShowPipedreamToolsManager(false);
-    setSelectedMCPForTools(null);
+    queryClient.invalidateQueries({ queryKey: ['agents'] });
+    queryClient.invalidateQueries({ queryKey: ['agent', selectedAgentId] });
+    queryClient.invalidateQueries({ queryKey: ['composio', 'profiles'] });
+    toast.success(`Connected ${appName} integration!`);
   };
 
   const handleCustomToolsUpdate = (enabledTools: string[]) => {
@@ -173,7 +121,7 @@ export const MCPConfigurationNew: React.FC<MCPConfigurationProps> = ({
               No integrations configured
             </h4>
             <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-              Browse the app registry to connect your apps through Pipedream or add custom MCP servers
+              Browse the app registry to connect your apps through Composio or add custom MCP servers
             </p>
             <div className="flex gap-2 justify-center">
               <Button onClick={() => setShowRegistryDialog(true)} variant="default">
@@ -216,11 +164,22 @@ export const MCPConfigurationNew: React.FC<MCPConfigurationProps> = ({
       )}
       
       <Dialog open={showRegistryDialog} onOpenChange={setShowRegistryDialog}>
-        <DialogContent className="p-0 max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="p-0 max-w-6xl h-[90vh] overflow-hidden">
           <DialogHeader className="sr-only">
             <DialogTitle>Select Integration</DialogTitle>
           </DialogHeader>
-          <PipedreamRegistry showAgentSelector={false} selectedAgentId={selectedAgentId} onAgentChange={handleAgentChange} onToolsSelected={handleToolsSelected} versionData={versionData} versionId={versionId} />
+          <ComposioRegistry 
+            showAgentSelector={false} 
+            selectedAgentId={selectedAgentId} 
+            onAgentChange={handleAgentChange} 
+            onToolsSelected={handleToolsSelected}
+            onClose={() => {
+              setShowRegistryDialog(false);
+              // Refresh data when dialog closes to ensure UI is up to date
+              queryClient.invalidateQueries({ queryKey: ['agents'] });
+              queryClient.invalidateQueries({ queryKey: ['agent', selectedAgentId] });
+            }}
+          />
         </DialogContent>
       </Dialog>
       <CustomMCPDialog
@@ -228,21 +187,19 @@ export const MCPConfigurationNew: React.FC<MCPConfigurationProps> = ({
         onOpenChange={setShowCustomDialog}
         onSave={handleSaveCustomMCP}
       />
-      {selectedMCPForTools && selectedMCPForTools.customType === 'pipedream' && (selectedMCPForTools.selectedProfileId || selectedMCPForTools.config?.profile_id) && (
-        <ToolsManager
-          mode="pipedream"
-          agentId={selectedAgentId}
+      {selectedMCPForTools && selectedMCPForTools.customType === 'composio' && (selectedMCPForTools.selectedProfileId || selectedMCPForTools.config?.profile_id) && (
+        <ComposioToolsManager
+          agentId={selectedAgentId || ''}
+          open={showComposioToolsManager}
+          onOpenChange={setShowComposioToolsManager}
           profileId={selectedMCPForTools.selectedProfileId || selectedMCPForTools.config?.profile_id}
-          appName={selectedMCPForTools.name}
-          open={showPipedreamToolsManager}
-          onOpenChange={setShowPipedreamToolsManager}
-          onToolsUpdate={handlePipedreamToolsUpdate}
-          versionData={versionData}
-          saveMode={saveMode}
-          versionId={versionId}
+          onToolsUpdate={() => {
+            setShowComposioToolsManager(false);
+            setSelectedMCPForTools(null);
+          }}
         />
       )}
-      {selectedMCPForTools && selectedMCPForTools.customType !== 'pipedream' && (
+      {selectedMCPForTools && selectedMCPForTools.customType !== 'composio' && (
         <ToolsManager
           mode="custom"
           agentId={selectedAgentId}
@@ -257,6 +214,14 @@ export const MCPConfigurationNew: React.FC<MCPConfigurationProps> = ({
           versionData={versionData}
           saveMode={saveMode}
           versionId={versionId}
+          initialEnabledTools={(() => {
+            console.log('[MCPConfiguration] Rendering Custom ToolsManager with:', {
+              selectedMCPForTools,
+              enabledTools: selectedMCPForTools.enabledTools,
+              customType: selectedMCPForTools.customType
+            });
+            return selectedMCPForTools.enabledTools;
+          })()}
         />
       )}
     </div>

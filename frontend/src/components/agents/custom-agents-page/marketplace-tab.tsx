@@ -6,20 +6,25 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SearchBar } from './search-bar';
 import { MarketplaceSectionHeader } from './marketplace-section-header';
 import { AgentCard } from './agent-card';
+
 import type { MarketplaceTemplate } from '@/components/agents/installation/types';
 
 interface MarketplaceTabProps {
   marketplaceSearchQuery: string;
   setMarketplaceSearchQuery: (value: string) => void;
-  marketplaceFilter: 'all' | 'kortix' | 'community';
-  setMarketplaceFilter: (value: 'all' | 'kortix' | 'community') => void;
+  marketplaceFilter: 'all' | 'kortix' | 'community' | 'mine';
+  setMarketplaceFilter: (value: 'all' | 'kortix' | 'community' | 'mine') => void;
   marketplaceLoading: boolean;
   allMarketplaceItems: MarketplaceTemplate[];
   kortixTeamItems: MarketplaceTemplate[];
   communityItems: MarketplaceTemplate[];
+  mineItems: MarketplaceTemplate[];
   installingItemId: string | null;
   onInstallClick: (item: MarketplaceTemplate, e?: React.MouseEvent) => void;
+  onDeleteTemplate?: (item: MarketplaceTemplate, e?: React.MouseEvent) => void;
   getItemStyling: (item: MarketplaceTemplate) => { avatar: string; color: string };
+  currentUserId?: string;
+  onAgentPreview?: (agent: MarketplaceTemplate) => void;
 }
 
 export const MarketplaceTab = ({
@@ -31,10 +36,20 @@ export const MarketplaceTab = ({
   allMarketplaceItems,
   kortixTeamItems,
   communityItems,
+  mineItems,
   installingItemId,
   onInstallClick,
-  getItemStyling
+  onDeleteTemplate,
+  getItemStyling,
+  currentUserId,
+  onAgentPreview
 }: MarketplaceTabProps) => {
+  const handleAgentClick = (item: MarketplaceTemplate) => {
+    if (onAgentPreview) {
+      onAgentPreview(item);
+    }
+  };
+
   return (
     <div className="space-y-6 mt-8 flex flex-col min-h-full">
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -43,14 +58,15 @@ export const MarketplaceTab = ({
           value={marketplaceSearchQuery}
           onChange={setMarketplaceSearchQuery}
         />
-        <Select value={marketplaceFilter} onValueChange={(value: 'all' | 'kortix' | 'community') => setMarketplaceFilter(value)}>
+        <Select value={marketplaceFilter} onValueChange={(value: 'all' | 'kortix' | 'community' | 'mine') => setMarketplaceFilter(value)}>
           <SelectTrigger className="w-[180px] h-12 rounded-xl">
             <SelectValue placeholder="Filter agents" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Agents</SelectItem>
-            <SelectItem value="kortix">Kortix Verified</SelectItem>
-            <SelectItem value="community">Community</SelectItem>
+          <SelectContent className='rounded-xl'>
+            <SelectItem className='rounded-xl' value="all">All Agents</SelectItem>
+            <SelectItem className='rounded-xl' value="mine">Mine</SelectItem>
+            <SelectItem className='rounded-xl' value="kortix">Kortix Verified</SelectItem>
+            <SelectItem className='rounded-xl' value="community">Community</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -90,7 +106,7 @@ export const MarketplaceTab = ({
                       title="Verified by Kortix"
                       subtitle="Official agents, maintained and supported"
                     />
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {kortixTeamItems.map((item) => (
                         <AgentCard
                           key={item.id}
@@ -99,7 +115,9 @@ export const MarketplaceTab = ({
                           styling={getItemStyling(item)}
                           isActioning={installingItemId === item.id}
                           onPrimaryAction={onInstallClick}
-                          onClick={() => onInstallClick(item)}
+                          onDeleteAction={onDeleteTemplate}
+                          onClick={() => handleAgentClick(item)}
+                          currentUserId={currentUserId}
                         />
                       ))}
                     </div>
@@ -107,7 +125,7 @@ export const MarketplaceTab = ({
                 )}
                 {communityItems.length > 0 && (
                   <div className="space-y-6">
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {communityItems.map((item) => (
                         <AgentCard
                           key={item.id}
@@ -116,7 +134,9 @@ export const MarketplaceTab = ({
                           styling={getItemStyling(item)}
                           isActioning={installingItemId === item.id}
                           onPrimaryAction={onInstallClick}
-                          onClick={() => onInstallClick(item)}
+                          onDeleteAction={onDeleteTemplate}
+                          onClick={() => handleAgentClick(item)}
+                          currentUserId={currentUserId}
                         />
                       ))}
                     </div>
@@ -124,7 +144,7 @@ export const MarketplaceTab = ({
                 )}
               </>
             ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {allMarketplaceItems.map((item) => (
                   <AgentCard
                     key={item.id}
@@ -133,7 +153,9 @@ export const MarketplaceTab = ({
                     styling={getItemStyling(item)}
                     isActioning={installingItemId === item.id}
                     onPrimaryAction={onInstallClick}
-                    onClick={() => onInstallClick(item)}
+                    onDeleteAction={onDeleteTemplate}
+                    onClick={() => handleAgentClick(item)}
+                    currentUserId={currentUserId}
                   />
                 ))}
               </div>

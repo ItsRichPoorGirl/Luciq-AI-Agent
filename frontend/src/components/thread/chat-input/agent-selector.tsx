@@ -17,7 +17,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useAgents, useCreateNewAgent } from '@/hooks/react-query/agents/use-agents';
+import { useAgents } from '@/hooks/react-query/agents/use-agents';
+import { NewAgentDialog } from '@/components/agents/new-agent-dialog';
 
 import { useRouter } from 'next/navigation';
 import { cn, truncateString } from '@/lib/utils';
@@ -64,13 +65,12 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
-  const [isCreatingAgent, setIsCreatingAgent] = useState(false);
+  const [showNewAgentDialog, setShowNewAgentDialog] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   const { data: agentsResponse, isLoading: agentsLoading } = useAgents();
   const agents = agentsResponse?.agents || [];
-  const createNewAgentMutation = useCreateNewAgent();
 
   const allAgents = [
     ...PREDEFINED_AGENTS.map(agent => ({
@@ -85,11 +85,21 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
     }))
   ];
 
-  // Filter agents based on search query
   const filteredAgents = allAgents.filter((agent) =>
     agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     agent.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const sortedFilteredAgents = React.useMemo(() => {
+    if (!selectedAgentId) {
+      return filteredAgents;
+    }
+    
+    const selectedAgent = filteredAgents.find(agent => agent.id === selectedAgentId);
+    const otherAgents = filteredAgents.filter(agent => agent.id !== selectedAgentId);
+    
+    return selectedAgent ? [selectedAgent, ...otherAgents] : filteredAgents;
+  }, [filteredAgents, selectedAgentId]);
 
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
@@ -104,7 +114,6 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
 
   const getAgentDisplay = () => {
     const selectedAgent = allAgents.find(agent => agent.id === selectedAgentId);
-    
     if (selectedAgent) {
       console.log('Selected agent found:', selectedAgent.name, 'with ID:', selectedAgent.id);
       const isSelectedAgentSuna = selectedAgent.metadata?.is_suna_default || false;
@@ -114,12 +123,10 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
       };
     }
     
-    // If selectedAgentId is not undefined but no agent is found, log a warning
     if (selectedAgentId !== undefined) {
       console.warn('Agent with ID', selectedAgentId, 'not found, falling back to Suna');
     }
     
-    // Default to Suna (the first agent which has id: undefined)
     const defaultAgent = allAgents[0];
     const isDefaultAgentSuna = defaultAgent?.metadata?.is_suna_default || false;
     return {
@@ -145,16 +152,16 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setHighlightedIndex((prev) =>
-        prev < filteredAgents.length - 1 ? prev + 1 : 0
+        prev < sortedFilteredAgents.length - 1 ? prev + 1 : 0
       );
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setHighlightedIndex((prev) =>
-        prev > 0 ? prev - 1 : filteredAgents.length - 1
+        prev > 0 ? prev - 1 : sortedFilteredAgents.length - 1
       );
     } else if (e.key === 'Enter' && highlightedIndex >= 0) {
       e.preventDefault();
-      const selectedAgent = filteredAgents[highlightedIndex];
+      const selectedAgent = sortedFilteredAgents[highlightedIndex];
       if (selectedAgent) {
         handleAgentSelect(selectedAgent.id);
       }
@@ -167,20 +174,9 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
   };
 
   const handleCreateAgent = useCallback(() => {
-    if (isCreatingAgent || createNewAgentMutation.isPending) {
-      return; // Prevent multiple clicks
-    }
-    
-    setIsCreatingAgent(true);
     setIsOpen(false);
-    
-    createNewAgentMutation.mutate(undefined, {
-      onSettled: () => {
-        // Reset the debounce state after mutation completes (success or error)
-        setTimeout(() => setIsCreatingAgent(false), 1000);
-      }
-    });
-  }, [isCreatingAgent, createNewAgentMutation]);
+    setShowNewAgentDialog(true);
+  }, []);
 
   const renderAgentItem = (agent: any, index: number) => {
     const isSelected = agent.id === selectedAgentId;
@@ -320,7 +316,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
               <div className="px-4 py-6 text-sm text-muted-foreground/70 text-center">
                 <div className="animate-pulse">Loading agents...</div>
               </div>
-            ) : filteredAgents.length === 0 ? (
+            ) : sortedFilteredAgents.length === 0 ? (
               <div className="px-4 py-6 text-sm text-muted-foreground/70 text-center">
                 <Search className="h-6 w-6 mx-auto mb-2 opacity-40" />
                 <p>No agents found</p>
@@ -328,7 +324,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
               </div>
             ) : (
               <div className="space-y-0.5">
-                {filteredAgents.map((agent, index) => renderAgentItem(agent, index))}
+                {sortedFilteredAgents.map((agent, index) => renderAgentItem(agent, index))}
               </div>
             )}
           </div>
@@ -352,17 +348,20 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={handleCreateAgent}
-                disabled={isCreatingAgent || createNewAgentMutation.isPending}
-                className="text-xs flex items-center gap-2 rounded-xl hover:bg-accent/40 transition-all duration-200 text-muted-foreground hover:text-foreground px-4 py-2 disabled:opacity-50"
+                className="text-xs flex items-center gap-2 rounded-xl hover:bg-accent/40 transition-all duration-200 text-muted-foreground hover:text-foreground px-4 py-2"
               >
                 <Plus className="h-3.5 w-3.5" />
-                {isCreatingAgent || createNewAgentMutation.isPending ? 'Creating...' : 'Create Agent'}
+                Create Agent
               </Button>
             </div>
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
-
+      
+      <NewAgentDialog 
+        open={showNewAgentDialog} 
+        onOpenChange={setShowNewAgentDialog}
+      />
     </>
   );
 }; 
