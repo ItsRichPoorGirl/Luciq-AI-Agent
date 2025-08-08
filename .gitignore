@@ -214,3 +214,40 @@ deployment-notes.md
 dev-scripts/
 env-comparison.md
 backend/fix_messages_schema.sql
+
+# Additional sensitive files and deployment configurations
+backend/AGENT_EXECUTION_FIX.md
+backend/secret_copy_summary.md
+backend/copy_secrets.sh
+backend/fly-worker.toml
+backend/fly.toml
+backend/qstash_webhook.py
+backend/start_worker.sh
+backend/worker_api.py
+backend/worker_health.py
+backend/test_agent_execution.py
+backend/delete_user_script.py
+backend/simple_user_delete.py
+backend/sql_user_delete.py
+backend/update_supabase_auth.py
+backend/verify_user_deletion.py
+
+# Environment files (already covered but being explicit)
+.env
+.env.local
+.env.production
+.env.staging
+backend/.env
+backend/.env.local
+backend/.env.production
+backend/.env.staging
+frontend/.env.local
+frontend/.env.production
+frontend/.env.staging
+
+# Local development files
+*.log
+*.tmp
+*.temp
+.cache/
+.temp/
