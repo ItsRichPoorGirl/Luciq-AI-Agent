@@ -142,10 +142,11 @@ class MCPToolWrapper(Tool):
         
         initialization_tasks = []
         
+        # Process standard configs with caching and parallelization
         if standard_configs:
             for config in standard_configs:
                 if self.use_cache:
-                    cached_data = await _redis_cache.get(config)
+                    cached_data = await self._redis_cache.get(config)
                     if cached_data:
                         cached_configs.append(config.get('qualifiedName', 'Unknown'))
                         cached_tools_data.append(cached_data)
@@ -154,10 +155,11 @@ class MCPToolWrapper(Tool):
                 task = self._initialize_single_standard_server(config)
                 initialization_tasks.append(('standard', config, task))
         
+        # Process custom configs with caching and parallelization
         if custom_configs:
             for config in custom_configs:
                 if self.use_cache:
-                    cached_data = await _redis_cache.get(config)
+                    cached_data = await self._redis_cache.get(config)
                     if cached_data:
                         cached_configs.append(config.get('name', 'Unknown'))
                         cached_tools_data.append(cached_data)
@@ -166,48 +168,40 @@ class MCPToolWrapper(Tool):
                 task = self._initialize_single_custom_mcp(config)
                 initialization_tasks.append(('custom', config, task))
         
-        if cached_tools_data:
-            logger.info(f"⚡ Loaded {len(cached_configs)} MCP schemas from Redis cache: {', '.join(cached_configs)}")
-            for cached_data in cached_tools_data:
-                try:
-                    if cached_data.get('type') == 'standard':
-                        logger.debug("Standard MCP tools found in cache but require connection to restore")
-                    elif cached_data.get('type') == 'custom':
-                        custom_tools = cached_data.get('tools', {})
-                        if custom_tools:
-                            self.custom_handler.custom_tools.update(custom_tools)
-                            logger.debug(f"Restored {len(custom_tools)} custom tools from cache")
-                except Exception as e:
-                    logger.warning(f"Failed to restore cached tools: {e}")
-        
+        # Execute all initialization tasks in parallel
         if initialization_tasks:
-            logger.info(f"🚀 Initializing {len(initialization_tasks)} MCP servers in parallel (cache enabled: {self.use_cache})...")
+            logger.info(f"🔄 Initializing {len(initialization_tasks)} MCP servers in parallel...")
             
+            # Create tasks for parallel execution
             tasks = [task for _, _, task in initialization_tasks]
+            
+            # Execute all tasks concurrently
             results = await asyncio.gather(*tasks, return_exceptions=True)
             
-            successful = 0
-            failed = 0
+            # Process results
+            successful_connections = 0
+            failed_connections = 0
             
-            for i, result in enumerate(results):
-                task_type, config, _ = initialization_tasks[i]
+            for i, (config_type, config, _) in enumerate(initialization_tasks):
+                result = results[i]
+                
                 if isinstance(result, Exception):
-                    failed += 1
-                    config_name = config.get('name', config.get('qualifiedName', 'Unknown'))
-                    logger.error(f"Failed to initialize MCP server '{config_name}': {result}")
+                    failed_connections += 1
+                    config_name = config.get('qualifiedName', config.get('name', 'Unknown'))
+                    logger.error(f"❌ Failed to initialize {config_type} MCP server {config_name}: {result}")
                 else:
-                    successful += 1
-                    if self.use_cache and result:
-                        await _redis_cache.set(config, result)
-            
-            elapsed_time = time.time() - start_time
-            logger.info(f"⚡ MCP initialization completed in {elapsed_time:.2f}s - {successful} successful, {failed} failed, {len(cached_configs)} from cache")
-        else:
-            if cached_configs:
-                elapsed_time = time.time() - start_time
-                logger.info(f"⚡ All {len(cached_configs)} MCP schemas loaded from Redis cache in {elapsed_time:.2f}s - instant startup!")
-            else:
-                logger.info("No MCP servers to initialize")
+                    successful_connections += 1
+                    config_name = config.get('qualifiedName', config.get('name', 'Unknown'))
+                    logger.info(f"✅ Successfully initialized {config_type} MCP server: {config_name}")
+        
+        # Log summary
+        total_time = time.time() - start_time
+        logger.info(f"🎯 MCP initialization completed in {total_time:.2f}s - "
+                   f"Success: {successful_connections}, Failed: {failed_connections}, "
+                   f"Cached: {len(cached_configs)}")
+        
+        if cached_configs:
+            logger.info(f"⚡ Used cached data for: {', '.join(cached_configs)}")
     
     async def _initialize_single_standard_server(self, config: Dict[str, Any]):
         try:

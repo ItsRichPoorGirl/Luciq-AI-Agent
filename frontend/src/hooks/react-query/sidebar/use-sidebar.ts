@@ -99,6 +99,7 @@ export const processThreadsWithProjects = (
   });
 
   const threadsWithProjects: ThreadWithProject[] = [];
+  const missingProjects: string[] = [];
 
   for (const thread of threads) {
     const projectId = thread.project_id;
@@ -106,9 +107,19 @@ export const processThreadsWithProjects = (
 
     const project = projectsById.get(projectId);
     if (!project) {
+      missingProjects.push(projectId);
       console.log(
         `❌ Thread ${thread.thread_id} has project_id=${projectId} but no matching project found`,
       );
+      // Continue without this thread instead of skipping it entirely
+      // This allows the thread to still be displayed even if project data is missing
+      threadsWithProjects.push({
+        threadId: thread.thread_id,
+        projectId: projectId,
+        projectName: 'Project Not Found',
+        url: `/projects/${projectId}/thread/${thread.thread_id}`,
+        updatedAt: thread.updated_at || new Date().toISOString(),
+      });
       continue;
     }
     let displayName = project.name || 'Unnamed Project';
@@ -124,6 +135,10 @@ export const processThreadsWithProjects = (
       updatedAt:
         thread.updated_at || project.updated_at || new Date().toISOString(),
     });
+  }
+
+  if (missingProjects.length > 0) {
+    console.warn(`Missing projects for ${missingProjects.length} threads:`, missingProjects);
   }
 
   return sortThreads(threadsWithProjects);

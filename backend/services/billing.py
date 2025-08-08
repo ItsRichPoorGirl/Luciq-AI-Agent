@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from utils.constants import MODEL_ACCESS_TIERS, MODEL_NAME_ALIASES, HARDCODED_MODEL_PRICES
 from litellm.cost_calculator import cost_per_token
 import time
+import os
 
 # Initialize Stripe
 stripe.api_key = config.STRIPE_SECRET_KEY
@@ -521,32 +522,59 @@ def calculate_token_cost(prompt_tokens: int, completion_tokens: int, model: str)
         logger.error(f"Error calculating token cost for model {model}: {str(e)}")
         return 0.0
 
+async def _is_admin_user(client, user_id: str) -> bool:
+    """
+    Check if a user is an admin.
+    
+    Args:
+        client: Supabase client
+        user_id: User ID to check
+        
+    Returns:
+        bool: True if user is admin, False otherwise
+    """
+    try:
+        # Check if user has admin role in basejump.accounts
+        result = await client.schema('basejump').from_('account_user').select('account_role').eq('user_id', user_id).execute()
+        
+        if result.data:
+            # Check if user has admin role in any account
+            for account_user in result.data:
+                if account_user.get('account_role') == 'owner':
+                    return True
+        
+        # You can add additional admin checks here (e.g., specific user IDs, admin table, etc.)
+        # For now, let's check if the user ID is in a list of admin users
+        admin_user_ids = os.getenv('ADMIN_USER_IDS', '').split(',')
+        if user_id in admin_user_ids:
+            return True
+            
+        return False
+    except Exception as e:
+        logger.warning(f"Error checking admin status for user {user_id}: {e}")
+        return False
+
 async def get_allowed_models_for_user(client, user_id: str):
     """
-    Get the list of models allowed for a user based on their subscription tier.
+    Get the list of models allowed for a user.
+    
+    Since pricing is now based on tokens rather than subscription tiers,
+    all users should have access to all models. Admin users get cost-free access.
     
     Returns:
-        List of model names allowed for the user's subscription tier.
+        List of model names allowed for the user.
     """
-
-    subscription = await get_user_subscription(user_id)
-    tier_name = 'free'
+    # Check if user is admin (you can customize this logic)
+    is_admin = await _is_admin_user(client, user_id)
     
-    if subscription:
-        price_id = None
-        if subscription.get('items') and subscription['items'].get('data') and len(subscription['items']['data']) > 0:
-            price_id = subscription['items']['data'][0]['price']['id']
-        else:
-            price_id = subscription.get('price_id', config.STRIPE_FREE_TIER_ID)
-        
-        # Get tier info for this price_id
-        tier_info = SUBSCRIPTION_TIERS.get(price_id)
-        if tier_info:
-            tier_name = tier_info['name']
+    if is_admin:
+        # Admin users get access to all models without cost restrictions
+        logger.info(f"Admin user {user_id} - granting access to all models")
+        return list(MODEL_NAME_ALIASES.keys()) + list(HARDCODED_MODEL_PRICES.keys())
     
-    # Return allowed models for this tier
-    return MODEL_ACCESS_TIERS.get(tier_name, MODEL_ACCESS_TIERS['free'])  # Default to free tier if unknown
-
+    # All users get access to all models (pricing is handled by token usage)
+    logger.info(f"User {user_id} - granting access to all models (token-based pricing)")
+    return list(MODEL_NAME_ALIASES.keys()) + list(HARDCODED_MODEL_PRICES.keys())
 
 async def can_use_model(client, user_id: str, model_name: str):
     if config.ENV_MODE == EnvMode.LOCAL:
@@ -557,12 +585,21 @@ async def can_use_model(client, user_id: str, model_name: str):
             "minutes_limit": "no limit"
         }
 
+    # Check if user is admin
+    is_admin = await _is_admin_user(client, user_id)
+    
+    if is_admin:
+        # Admin users can use any model without cost restrictions
+        return True, "Admin user - model access granted", {"plan_name": "Admin", "cost_limit": "no limit"}
+    
+    # All users can use any model (pricing is handled by token usage)
     allowed_models = await get_allowed_models_for_user(client, user_id)
     resolved_model = MODEL_NAME_ALIASES.get(model_name, model_name)
-    if resolved_model in allowed_models:
-        return True, "Model access allowed", allowed_models
     
-    return False, f"Your current subscription plan does not include access to {model_name}. Please upgrade your subscription or choose from your available models: {', '.join(allowed_models)}", allowed_models
+    if resolved_model in allowed_models or model_name in allowed_models:
+        return True, "Model access allowed (token-based pricing)", allowed_models
+    
+    return False, f"Model {model_name} not found in available models. Please contact support.", allowed_models
 
 async def check_billing_status(client, user_id: str) -> Tuple[bool, str, Optional[Dict]]:
     """

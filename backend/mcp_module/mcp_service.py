@@ -125,8 +125,8 @@ class MCPService:
             # Add debugging
             self._logger.info(f"MCP connection details - Provider: {request.provider}, URL: {server_url}, Headers: {headers}")
             
-            # Add timeout to prevent hanging
-            async with asyncio.timeout(30):
+            # Add timeout to prevent hanging (reduced from 30s to 15s)
+            async with asyncio.timeout(15):
                 async with streamablehttp_client(server_url, headers=headers) as (
                     read_stream, write_stream, _
                 ):
@@ -153,12 +153,15 @@ class MCPService:
                     return connection
                     
         except asyncio.TimeoutError:
-            error_msg = f"Connection timeout for {request.qualified_name} after 30 seconds"
+            error_msg = f"Connection timeout for {request.qualified_name} after 15 seconds"
             self._logger.error(error_msg)
             raise MCPConnectionError(error_msg)
         except Exception as e:
-            self._logger.error(f"Failed to connect to {request.qualified_name}: {str(e)}")
-            raise MCPConnectionError(f"Failed to connect to MCP server: {str(e)}")
+            error_msg = f"Failed to connect to {request.qualified_name}: {str(e)}"
+            self._logger.error(error_msg)
+            # Don't raise the error, just log it and continue
+            self._logger.warning(f"MCP connection failed for {request.qualified_name}, continuing without this service")
+            raise MCPConnectionError(error_msg)
     
     async def connect_all(self, mcp_configs: List[Dict[str, Any]]) -> None:
         requests = []
@@ -176,12 +179,28 @@ class MCPService:
             )
             requests.append(request)
         
+        successful_connections = 0
+        failed_connections = 0
+        
         for request in requests:
             try:
                 await self._connect_server_internal(request)
+                successful_connections += 1
+                self._logger.info(f"Successfully connected to {request.qualified_name}")
             except MCPConnectionError as e:
-                self._logger.error(f"Failed to connect to {request.qualified_name}: {str(e)}")
+                failed_connections += 1
+                self._logger.warning(f"Failed to connect to {request.qualified_name}: {str(e)}")
+                # Continue with other connections instead of stopping
                 continue
+            except Exception as e:
+                failed_connections += 1
+                self._logger.error(f"Unexpected error connecting to {request.qualified_name}: {str(e)}")
+                continue
+        
+        self._logger.info(f"MCP connection summary: {successful_connections} successful, {failed_connections} failed")
+        
+        if failed_connections > 0:
+            self._logger.warning(f"Some MCP connections failed ({failed_connections}/{len(requests)}), but continuing with available services")
     
     async def disconnect_server(self, qualified_name: str) -> None:
         connection = self._connections.get(qualified_name)

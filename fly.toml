@@ -1,0 +1,34 @@
+app = "luciq-ai-backend"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  ENABLE_AGENT_AGNOSTIC_THREADS = "true"
+  ENABLE_PER_MESSAGE_AGENT_SELECTION = "true"
+  PYTHONUNBUFFERED = "1"
+
+[processes]
+  app = "uv run gunicorn api:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 1800 --graceful-timeout 600 --keep-alive 1800 --max-requests 0 --max-requests-jitter 0 --forwarded-allow-ips '*' --worker-connections 2000 --worker-tmp-dir /dev/shm --preload --log-level info --access-logfile - --error-logfile - --capture-output --enable-stdio-inheritance --threads 2"
+  worker = "uv run dramatiq --skip-logging --processes 4 --threads 4 run_agent_background"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "4gb"
+  cpu_kind = "performance"
+  cpus = 1
+  processes = ["app"]
+
+[[vm]]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 1
+  processes = ["worker"]
