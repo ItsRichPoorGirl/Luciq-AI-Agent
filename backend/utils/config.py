@@ -268,6 +268,9 @@ class Configuration:
     API_KEY_SECRET: str = "default-secret-key-change-in-production"
     API_KEY_LAST_USED_THROTTLE_SECONDS: int = 900
     
+    # Admin configuration
+    ADMIN_USER_IDS: Optional[str] = None
+    
     # Agent execution limits (can be overridden via environment variable)
     _MAX_PARALLEL_AGENT_RUNS_ENV: Optional[str] = None
 

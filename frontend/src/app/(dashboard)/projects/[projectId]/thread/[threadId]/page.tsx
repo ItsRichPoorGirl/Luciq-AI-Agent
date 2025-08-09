@@ -549,6 +549,22 @@ export default function ThreadPage({
   useEffect(() => {
     if (initialLoadCompleted && subscriptionData && !hasCheckedUpgradeDialog.current) {
       hasCheckedUpgradeDialog.current = true;
+      
+      // TEMPORARY ADMIN BYPASS - Skip upgrade dialog for admin users
+      const currentUser = typeof window !== 'undefined' ? localStorage.getItem('sb-suna-auth-token') : null;
+      if (currentUser) {
+        try {
+          const userData = JSON.parse(currentUser);
+          const userId = userData?.user?.id;
+          if (userId === '42b78f2d-abc6-45ed-bea1-1b58553bb713') {
+            console.log('🔍 TEMPORARY: Admin user detected, skipping upgrade dialog');
+            return;
+          }
+        } catch (e) {
+          console.log('Could not parse user data for admin check');
+        }
+      }
+      
       const hasSeenUpgradeDialog = localStorage.getItem('suna_upgrade_dialog_displayed');
       const isFreeTier = subscriptionStatus === 'no_subscription';
       if (!hasSeenUpgradeDialog && isFreeTier && !isLocalMode()) {

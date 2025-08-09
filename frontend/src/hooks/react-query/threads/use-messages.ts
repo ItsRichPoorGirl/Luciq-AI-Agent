@@ -9,9 +9,9 @@ export const useMessagesQuery = (threadId: string) =>
     {
       enabled: !!threadId,
       retry: 1,
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      refetchOnMount: true,        // Enable refetching when component mounts
+      refetchOnWindowFocus: true,  // Enable refetching when window regains focus
+      refetchOnReconnect: true,    // Enable refetching on network reconnect
     }
   )();
 

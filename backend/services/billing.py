@@ -526,14 +526,15 @@ async def _is_admin_user(client, user_id: str) -> bool:
     """
     Check if a user is an admin.
     
-    Args:
-        client: Supabase client
-        user_id: User ID to check
-        
-    Returns:
-        bool: True if user is admin, False otherwise
+    Admin status is determined by:
+    1. Having 'owner' role in any account
+    2. Being in the ADMIN_USER_IDS config list
+    3. Having a specific admin email domain (optional)
     """
     try:
+        # Debug logging
+        logger.info(f"🔍 Checking admin status for user: {user_id}")
+        
         # Check if user has admin role in basejump.accounts
         result = await client.schema('basejump').from_('account_user').select('account_role').eq('user_id', user_id).execute()
         
@@ -541,14 +542,42 @@ async def _is_admin_user(client, user_id: str) -> bool:
             # Check if user has admin role in any account
             for account_user in result.data:
                 if account_user.get('account_role') == 'owner':
+                    logger.info(f"✅ User {user_id} is admin via account_role: owner")
                     return True
         
-        # You can add additional admin checks here (e.g., specific user IDs, admin table, etc.)
-        # For now, let's check if the user ID is in a list of admin users
-        admin_user_ids = os.getenv('ADMIN_USER_IDS', '').split(',')
+        # Check if user is in ADMIN_USER_IDS config
+        admin_user_ids_raw = config.ADMIN_USER_IDS or ''
+        logger.info(f"🔍 Raw ADMIN_USER_IDS from config: '{admin_user_ids_raw}'")
+        
+        admin_user_ids = admin_user_ids_raw.split(',') if admin_user_ids_raw else []
+        logger.info(f"🔍 Admin user IDs from config: {admin_user_ids}")
+        logger.info(f"🔍 Current user ID: {user_id}")
+        logger.info(f"🔍 Is user in admin list: {user_id in admin_user_ids}")
+        
+        # Also check if the user ID is in the raw string
+        logger.info(f"🔍 Is user ID in raw string: {user_id in admin_user_ids_raw}")
+        
         if user_id in admin_user_ids:
+            logger.info(f"✅ User {user_id} is admin via ADMIN_USER_IDS config")
             return True
-            
+        
+        # Additional admin check: Check if user has admin role in basejump.users
+        try:
+            user_result = await client.schema('basejump').from_('users').select('role').eq('id', user_id).execute()
+            if user_result.data and user_result.data[0].get('role') == 'admin':
+                logger.info(f"✅ User {user_id} is admin via users.role: admin")
+                return True
+        except Exception as e:
+            logger.debug(f"Could not check users.role for user {user_id}: {e}")
+        
+        # Fallback admin check for specific known admin users (emergency access)
+        # TODO: Remove this after proper admin system is in place
+        fallback_admin_ids = ['42b78f2d-abc6-45ed-bea1-1b58553bb713']
+        if user_id in fallback_admin_ids:
+            logger.info(f"✅ User {user_id} is admin via fallback admin list")
+            return True
+        
+        logger.info(f"❌ User {user_id} is not an admin")
         return False
     except Exception as e:
         logger.warning(f"Error checking admin status for user {user_id}: {e}")
@@ -614,6 +643,17 @@ async def check_billing_status(client, user_id: str) -> Tuple[bool, str, Optiona
             "price_id": "local_dev",
             "plan_name": "Local Development",
             "minutes_limit": "no limit"
+        }
+
+    # Check if user is admin first
+    is_admin = await _is_admin_user(client, user_id)
+    if is_admin:
+        logger.info(f"Admin user {user_id} - granting unlimited access")
+        return True, "Admin user - unlimited access granted", {
+            'price_id': "admin",
+            'plan_name': "Admin",
+            'cost_limit': "no limit",
+            'is_admin': True
         }
 
     # Get current subscription
@@ -1254,11 +1294,16 @@ async def check_status(
 ):
     """Check if the user can run agents based on their subscription and usage."""
     try:
+        # Debug logging
+        logger.info(f"🔍 Billing check-status called for user: {current_user_id}")
+        
         # Get Supabase client
         db = DBConnection()
         client = await db.client
         
         can_run, message, subscription = await check_billing_status(client, current_user_id)
+        
+        logger.info(f"🔍 Billing check result - can_run: {can_run}, message: {message}")
         
         return {
             "can_run": can_run,

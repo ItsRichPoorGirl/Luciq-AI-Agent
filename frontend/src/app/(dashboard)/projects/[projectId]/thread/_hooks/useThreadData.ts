@@ -173,27 +173,51 @@ export function useThreadData(threadId: string, projectId: string): UseThreadDat
   // Messages are now only loaded on initial page load and updated via streaming
   useEffect(() => {
     if (messagesQuery.data && messagesQuery.status === 'success') {
-      // Only load messages on initial load, not when agent status changes
-      if (!isLoading && messages.length === 0) {
-        const unifiedMessages = (messagesQuery.data || [])
-          .filter((msg) => msg.type !== 'status')
-          .map((msg: ApiMessageType) => ({
-            message_id: msg.message_id || null,
-            thread_id: msg.thread_id || threadId,
-            type: (msg.type || 'system') as UnifiedMessage['type'],
-            is_llm_message: Boolean(msg.is_llm_message),
-            content: msg.content || '',
-            metadata: msg.metadata || '{}',
-            created_at: msg.created_at || new Date().toISOString(),
-            updated_at: msg.updated_at || new Date().toISOString(),
-            agent_id: (msg as any).agent_id,
-            agents: (msg as any).agents,
-          }));
+      // Always load messages when data is available, regardless of current state
+      // This prevents chat history from disappearing when components remount
+      const unifiedMessages = (messagesQuery.data || [])
+        .filter((msg) => msg.type !== 'status')
+        .map((msg: ApiMessageType) => ({
+          message_id: msg.message_id || null,
+          thread_id: msg.thread_id || threadId,
+          type: (msg.type || 'system') as UnifiedMessage['type'],
+          is_llm_message: Boolean(msg.is_llm_message),
+          content: msg.content || '',
+          metadata: msg.metadata || '{}',
+          created_at: msg.created_at || new Date().toISOString(),
+          updated_at: msg.updated_at || new Date().toISOString(),
+          agent_id: (msg as any).agent_id,
+          agents: (msg as any).agents,
+        }));
 
-        setMessages(unifiedMessages);
+      setMessages(unifiedMessages);
+      
+      // Backup messages to localStorage for persistence across component remounts
+      if (unifiedMessages.length > 0) {
+        try {
+          localStorage.setItem(`thread-messages-${threadId}`, JSON.stringify(unifiedMessages));
+        } catch (e) {
+          console.warn('Failed to backup messages to localStorage:', e);
+        }
       }
     }
-  }, [messagesQuery.data, messagesQuery.status, isLoading, messages.length, threadId]);
+  }, [messagesQuery.data, messagesQuery.status, threadId]); // Removed messages.length dependency
+
+  // Restore messages from localStorage if query fails or returns empty
+  useEffect(() => {
+    if (messagesQuery.isError || (messagesQuery.data && messagesQuery.data.length === 0)) {
+      try {
+        const saved = localStorage.getItem(`thread-messages-${threadId}`);
+        if (saved && messages.length === 0) {
+          const restoredMessages = JSON.parse(saved);
+          console.log(`[useThreadData] Restoring ${restoredMessages.length} messages from localStorage for thread ${threadId}`);
+          setMessages(restoredMessages);
+        }
+      } catch (e) {
+        console.error('Failed to restore saved messages from localStorage:', e);
+      }
+    }
+  }, [messagesQuery.isError, messagesQuery.data, messages.length, threadId]);
 
   return {
     messages,

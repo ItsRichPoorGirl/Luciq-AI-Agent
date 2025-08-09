@@ -113,14 +113,41 @@ export const AgentBuilderChat = React.memo(function AgentBuilderChat({
         if (thread_id) {
           setThreadId(thread_id);
         }
+        
+        // Backup messages to localStorage for persistence across component remounts
+        if (unifiedMessages.length > 0) {
+          try {
+            const backupKey = `agent-builder-messages-${agentId}-${thread_id}`;
+            localStorage.setItem(backupKey, JSON.stringify(unifiedMessages));
+          } catch (e) {
+            console.warn('Failed to backup agent builder messages to localStorage:', e);
+          }
+        }
       }
 
       hasInitiallyLoadedRef.current = true;
     } else if (chatHistoryQuery.status === 'error') {
       console.error('[AgentBuilderChat] Error loading chat history:', chatHistoryQuery.error);
       hasInitiallyLoadedRef.current = true;
+      
+      // Try to restore messages from localStorage if query fails
+      if (threadId) {
+        try {
+          const backupKey = `agent-builder-messages-${agentId}-${threadId}`;
+          const saved = localStorage.getItem(backupKey);
+          if (saved && messages.length === 0) {
+            const restoredMessages = JSON.parse(saved);
+            console.log(`[AgentBuilderChat] Restoring ${restoredMessages.length} messages from localStorage for agent ${agentId}`);
+            setMessages(restoredMessages);
+            setHasStartedConversation(restoredMessages.length > 0);
+            previousMessageCountRef.current = restoredMessages.length;
+          }
+        } catch (e) {
+          console.error('Failed to restore saved agent builder messages from localStorage:', e);
+        }
+      }
     }
-  }, [chatHistoryQuery.data, chatHistoryQuery.status, chatHistoryQuery.error, agentId]);
+  }, [chatHistoryQuery.data, chatHistoryQuery.status, chatHistoryQuery.error, agentId, threadId, messages.length]);
 
   useEffect(() => {
     if (threadId && agentRunsQuery.data && !agentRunsCheckedRef.current) {
