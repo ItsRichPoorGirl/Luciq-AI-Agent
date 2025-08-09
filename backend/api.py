@@ -19,17 +19,24 @@ from collections import OrderedDict
 from pydantic import BaseModel
 import uuid
 
+# Import all API modules at the top
 from agent import api as agent_api
-
 from sandbox import api as sandbox_api
 from services import billing as billing_api
 from flags import api as feature_flags_api
 from services import transcription as transcription_api
-import sys
 from services import email_api
 from triggers import api as triggers_api
 from services import api_keys_api
+from mcp_module import api as mcp_api
+from credentials import api as credentials_api
+from templates import api as template_api
+from knowledge_base import api as knowledge_base_api
+from pipedream import api as pipedream_api
+from admin import api as admin_api
+from composio_integration import api as composio_api
 
+import sys
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -162,10 +169,6 @@ api_router.include_router(billing_api.router)
 api_router.include_router(feature_flags_api.router)
 api_router.include_router(api_keys_api.router)
 
-from mcp_module import api as mcp_api
-from credentials import api as credentials_api
-from templates import api as template_api
-
 api_router.include_router(mcp_api.router)
 api_router.include_router(credentials_api.router, prefix="/secure-mcp")
 api_router.include_router(template_api.router, prefix="/templates")
@@ -173,22 +176,18 @@ api_router.include_router(template_api.router, prefix="/templates")
 api_router.include_router(transcription_api.router)
 api_router.include_router(email_api.router)
 
-from knowledge_base import api as knowledge_base_api
 api_router.include_router(knowledge_base_api.router)
 
 api_router.include_router(triggers_api.router)
 
-from pipedream import api as pipedream_api
 api_router.include_router(pipedream_api.router)
 
 # MFA functionality moved to frontend
 
 
 
-from admin import api as admin_api
 api_router.include_router(admin_api.router)
 
-from composio_integration import api as composio_api
 api_router.include_router(composio_api.router)
 
 @api_router.get("/health")
