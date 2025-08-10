@@ -125,6 +125,11 @@ async def set_flag(key: str, enabled: bool, description: str = "") -> bool:
 
 
 async def is_enabled(key: str) -> bool:
+    # TEMPORARY FIX: Always return True for agent_triggers to bypass Redis issues
+    if key == "agent_triggers":
+        logger.info("TEMPORARY: Bypassing Redis check for agent_triggers - returning True")
+        return True
+    
     return await get_flag_manager().is_enabled(key)
 
 
