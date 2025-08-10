@@ -283,8 +283,9 @@ export function useAgentProcessingJobs(agentId: string) {
       const response = await fetch(`${API_URL}/knowledge-base/agents/${agentId}/processing-jobs`, { headers });
       
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to fetch processing jobs');
+        // TEMPORARY: Return empty jobs array instead of throwing error to stop 403 spam
+        console.log('📊 Processing jobs API failed, returning empty array temporarily');
+        return { jobs: [] };
       }
       
       const data = await response.json();
@@ -297,32 +298,8 @@ export function useAgentProcessingJobs(agentId: string) {
       return data;
     },
     enabled: !!agentId,
-    // Smart polling: only poll when there are active processing jobs
-    refetchInterval: (query) => {
-      const data = query.state.data as ProcessingJobsResponse | undefined;
-      
-      // If no data yet, check once after 2 seconds
-      if (!data) {
-        console.log('⏱️ No data yet, polling in 2 seconds');
-        return 2000;
-      }
-      
-      // Check if there are any active processing jobs (pending or processing status)
-      const hasActiveJobs = data.jobs?.some(job => 
-        job.status === 'processing' || job.status === 'pending'
-      );
-      
-      const nextInterval = hasActiveJobs ? 3000 : 30000;
-      console.log('⏱️ Polling decision:', { 
-        hasActiveJobs, 
-        nextInterval: `${nextInterval/1000}s`,
-        jobStatuses: data.jobs?.map(job => job.status) || []
-      });
-      
-      // If there are active jobs, poll every 3 seconds
-      // If no active jobs, poll every 30 seconds (much less frequent)
-      return nextInterval;
-    },
+    // TEMPORARILY DISABLED POLLING: Stop polling until backend is fixed
+    refetchInterval: false,
     // Stop polling when window is not focused to save resources
     refetchIntervalInBackground: false,
   });
