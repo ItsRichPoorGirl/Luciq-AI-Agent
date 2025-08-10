@@ -137,10 +137,31 @@ def initialize(database: DBConnection):
 async def verify_agent_access(agent_id: str, user_id: str):
     """Verify user has access to the agent"""
     client = await db.client
-    result = await client.table('agents').select('agent_id').eq('agent_id', agent_id).eq('account_id', user_id).execute()
     
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Agent not found or access denied")
+    # First, check if user is admin (bypass access checks for admin users)
+    from services.billing import _is_admin_user
+    is_admin = await _is_admin_user(client, user_id)
+    if is_admin:
+        logger.info(f"Admin user {user_id} - granting access to agent {agent_id}")
+        return
+    
+    # Get the agent and check account access
+    agent_result = await client.table('agents').select('account_id').eq('agent_id', agent_id).execute()
+    
+    if not agent_result.data:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    agent_data = agent_result.data[0]
+    account_id = agent_data.get('account_id')
+    
+    if not account_id:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    # Check if user has access to this account
+    account_user_result = await client.schema('basejump').from_('account_user').select('account_role').eq('user_id', user_id).eq('account_id', account_id).execute()
+    
+    if not account_user_result.data:
+        raise HTTPException(status_code=403, detail="Agent not found or access denied")
 
 
 # ===== PROVIDER ENDPOINTS =====

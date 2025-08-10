@@ -418,12 +418,36 @@ async def verify_agent_access(client, agent_id: str, user_id: str) -> dict:
         HTTPException: If the user doesn't have access to the agent or agent doesn't exist
     """
     try:
-        agent_result = await client.table('agents').select('*').eq('agent_id', agent_id).eq('account_id', user_id).execute()
+        # First, check if user is admin (bypass access checks for admin users)
+        from services.billing import _is_admin_user
+        is_admin = await _is_admin_user(client, user_id)
+        if is_admin:
+            logger.info(f"Admin user {user_id} - granting access to agent {agent_id}")
+            # Get agent data for admin users
+            agent_result = await client.table('agents').select('*').eq('agent_id', agent_id).execute()
+            if not agent_result.data:
+                raise HTTPException(status_code=404, detail="Agent not found")
+            return agent_result.data[0]
+        
+        # Get the agent and check account access
+        agent_result = await client.table('agents').select('*').eq('agent_id', agent_id).execute()
         
         if not agent_result.data:
-            raise HTTPException(status_code=404, detail="Agent not found or access denied")
+            raise HTTPException(status_code=404, detail="Agent not found")
         
-        return agent_result.data[0]
+        agent_data = agent_result.data[0]
+        account_id = agent_data.get('account_id')
+        
+        if not account_id:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        # Check if user has access to this account
+        account_user_result = await client.schema('basejump').from_('account_user').select('account_role').eq('user_id', user_id).eq('account_id', account_id).execute()
+        
+        if not account_user_result.data:
+            raise HTTPException(status_code=403, detail="Agent not found or access denied")
+        
+        return agent_data
         
     except HTTPException:
         raise

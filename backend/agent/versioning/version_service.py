@@ -84,17 +84,30 @@ class VersionService:
             
         client = await self._get_client()
         
-        owner_result = await client.table('agents').select('account_id').eq(
-            'agent_id', agent_id
-        ).eq('account_id', user_id).execute()
+        # First, check if user is admin (bypass access checks for admin users)
+        from services.billing import _is_admin_user
+        is_admin = await _is_admin_user(client, user_id)
+        if is_admin:
+            logger.info(f"Admin user {user_id} - granting access to agent {agent_id}")
+            return True, False  # Admin has owner access, not public
         
-        is_owner = bool(owner_result.data)
+        # Get the agent and check account access
+        agent_result = await client.table('agents').select('account_id, is_public').eq('agent_id', agent_id).execute()
         
-        public_result = await client.table('agents').select('is_public').eq(
-            'agent_id', agent_id
-        ).execute()
+        if not agent_result.data:
+            return False, False
         
-        is_public = bool(public_result.data and public_result.data[0].get('is_public', False))
+        agent_data = agent_result.data[0]
+        account_id = agent_data.get('account_id')
+        is_public = agent_data.get('is_public', False)
+        
+        if not account_id:
+            return False, is_public
+        
+        # Check if user has access to this account
+        account_user_result = await client.schema('basejump').from_('account_user').select('account_role').eq('user_id', user_id).eq('account_id', account_id).execute()
+        
+        is_owner = bool(account_user_result.data)
         
         return is_owner, is_public
     
