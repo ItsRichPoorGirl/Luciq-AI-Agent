@@ -288,33 +288,6 @@ export default function ThreadPage({
     [],
   );
 
-  // useEffect(() => {
-  //   if (!isPlaying || messages.length === 0) return;
-
-  //   let playbackTimeout: NodeJS.Timeout;
-
-  //   const playbackNextMessage = async () => {
-  //     if (currentMessageIndex >= messages.length) {
-  //       setIsPlaying(false);
-  //       return;
-  //     }
-
-  //     const currentMessage = messages[currentMessageIndex];
-  //     console.log(
-  //       `Playing message ${currentMessageIndex}:`,
-  //       currentMessage.type,
-  //       currentMessage.message_id,
-  //     );
-
-  //     setCurrentMessageIndex((prevIndex) => prevIndex + 1);
-  //   };
-  //   playbackTimeout = setTimeout(playbackNextMessage, 500);
-
-  //   return () => {
-  //     clearTimeout(playbackTimeout);
-  //   };
-  // }, [isPlaying, currentMessageIndex, messages]);
-
   const {
     status: streamHookStatus,
     toolCall: streamingToolCall,
@@ -788,7 +761,7 @@ export default function ThreadPage({
   return (
     <div className="flex h-screen">
       <div
-        className={`flex flex-col flex-1 overflow-hidden transition-all duration-200 ease-in-out ${isSidePanelOpen ? 'mr-[90%] sm:mr-[450px] md:mr-[500px] lg:mr-[550px] xl:mr-[650px]' : ''}`}
+        className={`flex flex-col flex-1 overflow-hidden transition-all duration-200 ease-in-out ${isSidePanelOpen ? 'mr-[50vw]' : ''}`}
       >
         {renderHeader()}
         <ThreadContent

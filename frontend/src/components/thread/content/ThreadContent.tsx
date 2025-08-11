@@ -16,40 +16,8 @@ import { AgentLoader } from './loader';
 import { parseXmlToolCalls, isNewXmlFormat } from '@/components/thread/tool-views/xml-parser';
 import { ShowToolStream } from './ShowToolStream';
 import { ComposioUrlDetector } from './composio-url-detector';
+import { HIDE_STREAMING_XML_TAGS } from '@/components/thread/utils';
 
-const HIDE_STREAMING_XML_TAGS = new Set([
-    'execute-command',
-    'create-file',
-    'delete-file',
-    'full-file-rewrite',
-    'edit-file',
-    'str-replace',
-    'browser-click-element',
-    'browser-close-tab',
-    'browser-drag-drop',
-    'browser-get-dropdown-options',
-    'browser-go-back',
-    'browser-input-text',
-    'browser-navigate-to',
-    'browser-scroll-down',
-    'browser-scroll-to-text',
-    'browser-scroll-up',
-    'browser-select-dropdown-option',
-    'browser-send-keys',
-    'browser-switch-tab',
-    'browser-wait',
-    'deploy',
-    'ask',
-    'complete',
-    'crawl-webpage',
-    'web-search',
-    'see-image',
-    'execute_data_provider_call',
-    'execute_data_provider_endpoint',
-
-    'execute-data-provider-call',
-    'execute-data-provider-endpoint',
-]);
 
 // Helper function to render attachments (keeping original implementation for now)
 export function renderAttachments(attachments: string[], fileViewerHandler?: (filePath?: string, filePathList?: string[]) => void, sandboxId?: string, project?: Project) {
@@ -498,7 +466,7 @@ export const ThreadContent: React.FC<ThreadContentProps> = ({
                     className={`${containerClassName} flex flex-col-reverse ${shouldJustifyToTop ? 'justify-end min-h-full' : ''}`}
                     onScroll={handleScroll}
                 >
-                    <div ref={contentRef} className="mx-auto max-w-3xl md:px-8 min-w-0 w-full">
+                    <div ref={contentRef} className="mx-auto max-w-4xl md:px-8 min-w-0 w-full">
                         <div className="space-y-8 min-w-0">
                             {(() => {
 
