@@ -43,7 +43,31 @@ class FeatureFlagManager:
             flag_key = f"{self.flag_prefix}{key}"
             redis_client = await redis.get_client()
             enabled = await redis_client.hget(flag_key, 'enabled')
-            return enabled == 'true' if enabled else False
+            
+            # If flag exists in Redis, use that value
+            if enabled is not None:
+                return enabled == 'true'
+            
+            # If flag doesn't exist in Redis, use default values
+            default_flags = {
+                'agent_triggers': True,  # Enable agent triggers by default
+                'custom_agents': True,
+                'mcp_module': True,
+                'templates_api': True,
+                'triggers_api': True,
+                'workflows_api': True,
+                'knowledge_base': True,
+                'pipedream': True,
+                'credentials_api': True,
+                'suna_default_agent': True
+            }
+            
+            # Return default value if flag doesn't exist in Redis
+            if key in default_flags:
+                logger.info(f"Feature flag {key} not found in Redis, using default value: {default_flags[key]}")
+                return default_flags[key]
+            
+            return False
         except Exception as e:
             logger.error(f"Failed to check feature flag {key}: {e}")
             # Return False by default if Redis is unavailable
@@ -166,6 +190,9 @@ templates_api = True
 
 # Triggers API feature flag
 triggers_api = True
+
+# Agent triggers feature flag
+agent_triggers = True
 
 # Workflows API feature flag
 workflows_api = True
