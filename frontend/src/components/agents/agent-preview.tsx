@@ -27,6 +27,7 @@ interface Agent {
   is_default: boolean;
   created_at?: string;
   updated_at?: string;
+  profile_image_url?: string;
 }
 
 interface AgentPreviewProps {
@@ -63,6 +64,25 @@ export const AgentPreview = ({ agent, agentMetadata }: AgentPreviewProps) => {
 
   const { avatar, color } = getAgentStyling();
 
+  const agentAvatarComponent = React.useMemo(() => {
+    if (isSunaAgent) {
+      return <KortixLogo size={16} />;
+    }
+    if (agent.profile_image_url) {
+      return (
+        <img 
+          src={agent.profile_image_url} 
+          alt={agent.name}
+          className="h-4 w-4 rounded-sm object-cover"
+        />
+      );
+    }
+    if (avatar) {
+      return <div className="text-base leading-none">{avatar}</div>;
+    }
+    return <KortixLogo size={16} />;
+  }, [agent.profile_image_url, agent.name, avatar, isSunaAgent]);
+
   const initiateAgentMutation = useInitiateAgentWithInvalidation();
   const addUserMessageMutation = useAddUserMessageMutation();
   const startAgentMutation = useStartAgentMutation();
@@ -77,8 +97,6 @@ export const AgentPreview = ({ agent, agentMetadata }: AgentPreviewProps) => {
   }, [messages]);
 
   const handleNewMessageFromStream = useCallback((message: UnifiedMessage) => {
-    console.log(`[PREVIEW STREAM] Received message: ID=${message.message_id}, Type=${message.type}`);
-
     setMessages((prev) => {
       const messageExists = prev.some((m) => m.message_id === message.message_id);
       if (messageExists) {
@@ -90,7 +108,6 @@ export const AgentPreview = ({ agent, agentMetadata }: AgentPreviewProps) => {
   }, []);
 
   const handleStreamStatusChange = useCallback((hookStatus: string) => {
-    console.log(`[PREVIEW] Stream status changed: ${hookStatus}`);
     switch (hookStatus) {
       case 'idle':
       case 'completed':
@@ -119,7 +136,6 @@ export const AgentPreview = ({ agent, agentMetadata }: AgentPreviewProps) => {
   }, []);
 
   const handleStreamClose = useCallback(() => {
-    console.log(`[PREVIEW] Stream closed`);
   }, []);
 
   const {
@@ -143,22 +159,9 @@ export const AgentPreview = ({ agent, agentMetadata }: AgentPreviewProps) => {
 
   useEffect(() => {
     if (agentRunId && agentRunId !== currentHookRunId && threadId) {
-      console.log(`[PREVIEW] Starting stream for agentRunId: ${agentRunId}, threadId: ${threadId}`);
       startStreaming(agentRunId);
     }
   }, [agentRunId, startStreaming, currentHookRunId, threadId]);
-
-  useEffect(() => {
-    console.log('[PREVIEW] State update:', {
-      threadId,
-      agentRunId,
-      currentHookRunId,
-      agentStatus,
-      streamHookStatus,
-      messagesCount: messages.length,
-      hasStartedConversation
-    });
-  }, [threadId, agentRunId, currentHookRunId, agentStatus, streamHookStatus, messages.length, hasStartedConversation]);
 
   useEffect(() => {
     if (streamingTextContent) {
@@ -199,23 +202,18 @@ export const AgentPreview = ({ agent, agentMetadata }: AgentPreviewProps) => {
       formData.append('stream', String(options?.stream ?? true));
       formData.append('enable_context_manager', String(options?.enable_context_manager ?? false));
 
-      console.log('[PREVIEW] Initiating agent...');
       const result = await initiateAgentMutation.mutateAsync(formData);
-      console.log('[PREVIEW] Agent initiated:', result);
 
       if (result.thread_id) {
         setThreadId(result.thread_id);
         if (result.agent_run_id) {
-          console.log('[PREVIEW] Setting agent run ID:', result.agent_run_id);
           setAgentRunId(result.agent_run_id);
         } else {
-          console.log('[PREVIEW] No agent_run_id in result, starting agent manually...');
           try {
             const agentResult = await startAgentMutation.mutateAsync({
               threadId: result.thread_id,
               options
             });
-            console.log('[PREVIEW] Agent started manually:', agentResult);
             setAgentRunId(agentResult.agent_run_id);
           } catch (startError) {
             console.error('[PREVIEW] Error starting agent manually:', startError);
@@ -314,7 +312,6 @@ export const AgentPreview = ({ agent, agentMetadata }: AgentPreviewProps) => {
   );
 
   const handleStopAgent = useCallback(async () => {
-    console.log('[PREVIEW] Stopping agent...');
     setAgentStatus('idle');
     await stopStreaming();
 
@@ -328,7 +325,6 @@ export const AgentPreview = ({ agent, agentMetadata }: AgentPreviewProps) => {
   }, [stopStreaming, agentRunId, stopAgentMutation]);
 
   const handleToolClick = useCallback((assistantMessageId: string | null, toolName: string) => {
-    console.log('[PREVIEW] Tool clicked:', toolName);
     toast.info(`Tool: ${toolName} (Preview mode - tool details not available)`);
   }, []);
 
@@ -352,12 +348,20 @@ export const AgentPreview = ({ agent, agentMetadata }: AgentPreviewProps) => {
             streamHookStatus={streamHookStatus}
             isPreviewMode={true}
             agentName={agent.name}
-            agentAvatar={avatar}
+            agentAvatar={agentAvatarComponent}
+            agentMetadata={agentMetadata}
+            agentData={agent}
             emptyStateComponent={
               <div className="flex flex-col items-center text-center text-muted-foreground/80">
                 <div className="flex w-20 aspect-square items-center justify-center rounded-2xl bg-muted-foreground/10 p-4 mb-4">
                   {isSunaAgent ? (
                     <KortixLogo size={36} />
+                  ) : agent.profile_image_url ? (
+                    <img 
+                      src={agent.profile_image_url} 
+                      alt={agent.name}
+                      className="w-12 h-12 rounded-xl object-cover"
+                    />
                   ) : (
                     <div className="text-4xl">{avatar}</div>
                   )}

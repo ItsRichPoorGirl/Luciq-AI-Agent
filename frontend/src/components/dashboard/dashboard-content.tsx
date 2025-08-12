@@ -37,6 +37,8 @@ import { KortixLogo } from '../sidebar/kortix-logo';
 import { AgentRunLimitDialog } from '@/components/thread/agent-run-limit-dialog';
 import { useFeatureFlag } from '@/lib/feature-flags';
 import { CustomAgentsSection } from './custom-agents-section';
+import { toast } from 'sonner';
+import { ReleaseBadge } from '../auth/release-badge';
 
 const PENDING_PROMPT_KEY = 'pendingAgentPrompt';
 
@@ -88,12 +90,18 @@ export function DashboardContent() {
 
   const threadQuery = useThreadQuery(initiatedThreadId || '');
 
-  // Initialize agent selection from agents list
   useEffect(() => {
+    console.log('🚀 Dashboard effect:', { 
+      agentsLength: agents.length, 
+      selectedAgentId, 
+      agents: agents.map(a => ({ id: a.agent_id, name: a.name, isDefault: a.metadata?.is_suna_default })) 
+    });
+    
     if (agents.length > 0) {
-      initializeFromAgents(agents);
+      console.log('📞 Calling initializeFromAgents');
+      initializeFromAgents(agents, undefined, setSelectedAgent);
     }
-  }, [agents, initializeFromAgents]);
+  }, [agents, initializeFromAgents, setSelectedAgent]);
 
   useEffect(() => {
     const agentIdFromUrl = searchParams.get('agent_id');
@@ -108,7 +116,6 @@ export function DashboardContent() {
   useEffect(() => {
     if (threadQuery.data && initiatedThreadId) {
       const thread = threadQuery.data;
-      console.log('Thread data received:', thread);
       if (thread.project_id) {
         router.push(`/projects/${thread.project_id}/thread/${initiatedThreadId}`);
       } else {
@@ -159,10 +166,7 @@ export function DashboardContent() {
       formData.append('stream', String(options?.stream ?? true));
       formData.append('enable_context_manager', String(options?.enable_context_manager ?? false));
 
-      console.log('FormData content:', Array.from(formData.entries()));
-
       const result = await initiateAgentMutation.mutateAsync(formData);
-      console.log('Agent initiated:', result);
 
       if (result.thread_id) {
         setInitiatedThreadId(result.thread_id);
@@ -173,19 +177,19 @@ export function DashboardContent() {
     } catch (error: any) {
       console.error('Error during submission process:', error);
       if (error instanceof BillingError) {
-        console.log('Handling BillingError:', error.detail);
         onOpen("paymentRequiredDialog");
       } else if (error instanceof AgentRunLimitError) {
-        console.log('Handling AgentRunLimitError:', error.detail);
         const { running_thread_ids, running_count } = error.detail;
-        
-        // Show the dialog with limit information
         setAgentLimitData({
           runningCount: running_count,
           runningThreadIds: running_thread_ids,
         });
         setShowAgentLimitDialog(true);
+      } else {
+        const errorMessage = error instanceof Error ? error.message : 'Operation failed';
+        toast.error(errorMessage);
       }
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -234,6 +238,11 @@ export function DashboardContent() {
               </TooltipTrigger>
               <TooltipContent>Open menu</TooltipContent>
             </Tooltip>
+          </div>
+        )}
+        {customAgentsEnabled && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10">
+            <ReleaseBadge text="Custom Agents, Playbooks, and more!" link="/agents?tab=my-agents" />
           </div>
         )}
         <div className={cn(
